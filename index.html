@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Консультант</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background: #f9f9f9; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        input, button { padding: 12px; font-size: 16px; width: 100%; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #answer { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-top: 20px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>🤖 AI Консультант</h2>
+    <p>Задайте вопрос по нашей базе знаний</p>
+    <input type="text" id="question" placeholder="Введите вопрос..." />
+    <button onclick="ask()">Отправить</button>
+    <div id="answer"></div>
+</div>
+<script>
+    const API_URL = 'https://d5devpnr02o9anr7lg0j.8wihnuyr.apigw.yandexcloud.net';
+    async function ask() {
+        const question = document.getElementById('question').value;
+        if (!question) return;
+        document.getElementById('answer').innerHTML = '⏳ Думаю...';
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: question })
+            });
+            const data = await response.json();
+            document.getElementById('answer').innerHTML = `<strong>Ответ:</strong><br>${data.response || data.body}`;
+        } catch (error) {
+            document.getElementById('answer').innerHTML = `Ошибка: ${error.message}`;
+        }
+    }
+    document.getElementById('question').addEventListener('keypress', (e) => { if (e.key === 'Enter') ask(); });
+</script>
+</body>
+</html>
