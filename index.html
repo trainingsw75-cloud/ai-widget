@@ -2,368 +2,68 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Райский AI | Голосовой помощник</title>
+    <title>Райский AI (Голос через SpeechKit)</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0b3b3f 0%, #1a5f5a 50%, #2e8b6c 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-            padding: 20px;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: radial-gradient(white 1.5px, transparent 1.5px);
-            background-size: 40px 40px;
-            opacity: 0.1;
-            pointer-events: none;
-        }
-
-        body::after {
-            content: '✨';
-            font-size: 60px;
-            position: absolute;
-            bottom: 20px;
-            right: 30px;
-            opacity: 0.3;
-            pointer-events: none;
-            animation: float 6s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-            100% { transform: translateY(0px); }
-        }
-
-        .chat-container {
-            width: 100%;
-            max-width: 750px;
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(12px);
-            border-radius: 48px;
-            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.15);
-            overflow: hidden;
-        }
-
-        .chat-header {
-            background: rgba(10, 30, 28, 0.7);
-            padding: 20px 28px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .logo {
-            font-size: 2.8rem;
-            letter-spacing: 2px;
-            font-weight: 600;
-            background: linear-gradient(135deg, #f9f3c1, #d4e6b0);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .logo span {
-            font-size: 2rem;
-            display: inline-block;
-            margin-right: 8px;
-        }
-
-        .subtitle {
-            color: #cfe8dc;
-            font-size: 0.9rem;
-            margin-top: 8px;
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
-
-        .chat-messages {
-            background: rgba(0, 0, 0, 0.2);
-            padding: 25px 30px;
-            min-height: 280px;
-            max-height: 400px;
-            overflow-y: auto;
-            scroll-behavior: smooth;
-        }
-
-        .message {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(4px);
-            border-radius: 28px;
-            padding: 14px 22px;
-            margin-bottom: 20px;
-            color: #1e2f2c;
-            font-size: 1rem;
-            line-height: 1.5;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 1px solid rgba(255,255,240,0.6);
-            word-break: break-word;
-        }
-
-        .message.user {
-            background: #e0f0e9;
-            border-bottom-right-radius: 8px;
-        }
-
-        .message.bot {
-            background: #ffffffda;
-            border-bottom-left-radius: 8px;
-            border-left: 4px solid #2e8b6c;
-        }
-
-        .input-area {
-            padding: 20px 28px 30px;
-            display: flex;
-            gap: 14px;
-            background: rgba(0, 0, 0, 0.2);
-            border-top: 1px solid rgba(255, 255, 255, 0.15);
-            align-items: center;
-        }
-
-        .input-area input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 60px;
-            padding: 14px 22px;
-            font-size: 1rem;
-            color: #1e2f2c;
-            outline: none;
-            transition: 0.2s;
-            font-family: inherit;
-        }
-
-        .input-area input:focus {
-            background: white;
-            box-shadow: 0 0 0 3px rgba(46, 139, 108, 0.5);
-        }
-
-        .input-area button {
-            background: linear-gradient(95deg, #2e8b6c, #1f5e4a);
-            border: none;
-            border-radius: 60px;
-            padding: 0 28px;
-            font-size: 1rem;
-            font-weight: 600;
-            color: white;
-            cursor: pointer;
-            transition: 0.2s;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-        }
-
-        .input-area button:hover {
-            transform: scale(1.02);
-            background: linear-gradient(95deg, #3ba37f, #2a785e);
-            box-shadow: 0 6px 14px rgba(0,0,0,0.2);
-        }
-
-        .mic-btn {
-            background: #2e8b6c;
-            border-radius: 50%;
-            width: 48px;
-            height: 48px;
-            padding: 0;
-            font-size: 1.5rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .mic-btn.recording {
-            background: #e63946;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .chat-messages::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #cfe8dc;
-            border-radius: 10px;
-        }
-
-        footer {
-            text-align: center;
-            font-size: 0.7rem;
-            padding: 12px;
-            color: #cfe8dc;
-            background: rgba(0,0,0,0.2);
-        }
-
-        @media (max-width: 550px) {
-            .chat-container { border-radius: 32px; }
-            .chat-header { padding: 14px 20px; }
-            .logo { font-size: 1.8rem; }
-            .input-area { padding: 16px 20px 24px; }
-            .input-area button { padding: 0 20px; }
-            .mic-btn { width: 42px; height: 42px; font-size: 1.2rem; }
-        }
+        /* Ваши стили (оставьте как есть) */
     </style>
 </head>
 <body>
-
 <div class="chat-container">
-    <div class="chat-header">
-        <div class="logo">
-            <span>🌴</span> Райский AI <span>🌊</span>
-        </div>
-        <div class="subtitle">Ваш голосовой помощник с доступом к данным</div>
-    </div>
-
-    <div class="chat-messages" id="chatMessages">
-        <div class="message bot">✨ Приветствую в райском уголке! Задайте любой вопрос голосом или текстом.<br>Например: «Покажи топ‑5 сотрудников» или «сделай таблицу».</div>
-    </div>
-
+    ... (хедер, окно чата)
     <div class="input-area">
-        <input type="text" id="questionInput" placeholder="Напишите или скажите вопрос..." autocomplete="off">
-        <button id="sendBtn">Отправить ✨</button>
-        <button id="micBtn" class="mic-btn" title="Голосовой ввод">🎤</button>
+        <input type="text" id="questionInput" placeholder="Или напишите текст...">
+        <button id="sendBtn">Отправить</button>
+        <button id="recordBtn">🎤 Записать</button>
     </div>
-    <footer>⚡ AI на основе YandexGPT • RAG • Голосовое управление</footer>
 </div>
-
 <script>
     const API_URL = 'https://d5devpnr02o9anr7lg0j.8wihnuyr.apigw.yandexcloud.net/';
-    const chatMessages = document.getElementById('chatMessages');
-    const questionInput = document.getElementById('questionInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const micBtn = document.getElementById('micBtn');
+    let mediaRecorder;
+    let audioChunks = [];
 
-    // --- Функция для добавления сообщения ---
-    function addMessage(text, isUser = false) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-        messageDiv.textContent = text;
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    // --- Озвучивание ответа (Speech Synthesis) ---
-    function speakText(text) {
-        if (!window.speechSynthesis) {
-            console.warn("Speech Synthesis not supported");
+    const recordBtn = document.getElementById('recordBtn');
+    recordBtn.addEventListener('click', async () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            recordBtn.textContent = '🎤 Записать';
             return;
         }
-        // Останавливаем текущую речь, если она есть
-        if (window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel();
-        }
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ru-RU';
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
-        window.speechSynthesis.speak(utterance);
-    }
-
-    // --- Отправка вопроса к AI ---
-    async function askQuestion() {
-        const question = questionInput.value.trim();
-        if (!question) return;
-
-        addMessage(question, true);
-        questionInput.value = '';
-        addMessage('⏳ Думаю...', false);
-
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: question })
-            });
-            const data = await response.json();
-            // Удаляем временное сообщение "Думаю..."
-            chatMessages.removeChild(chatMessages.lastChild);
-            const answer = data.response || data.body || 'Не удалось получить ответ';
-            addMessage(answer, false);
-            // Озвучиваем ответ
-            speakText(answer);
-        } catch (error) {
-            chatMessages.removeChild(chatMessages.lastChild);
-            addMessage('❌ Ошибка соединения. Попробуйте позже.', false);
-            console.error(error);
-        }
-    }
-
-    // --- Голосовой ввод (Speech Recognition) ---
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ru-RU';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
-
-        let isRecording = false;
-
-        micBtn.addEventListener('click', () => {
-            if (isRecording) {
-                recognition.stop();
-                return;
-            }
-            recognition.start();
-            micBtn.classList.add('recording');
-            micBtn.textContent = '⏺️';
-            isRecording = true;
-        });
-
-        recognition.addEventListener('result', (event) => {
-            const speechToText = event.results[0][0].transcript;
-            questionInput.value = speechToText;
-            // Автоматически отправляем вопрос после распознавания
-            askQuestion();
-        });
-
-        recognition.addEventListener('end', () => {
-            micBtn.classList.remove('recording');
-            micBtn.textContent = '🎤';
-            isRecording = false;
-        });
-
-        recognition.addEventListener('error', (event) => {
-            console.error('Ошибка распознавания:', event.error);
-            micBtn.classList.remove('recording');
-            micBtn.textContent = '🎤';
-            isRecording = false;
-            addMessage('❌ Не удалось распознать голос. Попробуйте еще раз.', false);
-        });
-    } else {
-        micBtn.style.display = 'none';
-        console.warn('Web Speech API не поддерживается вашим браузером.');
-    }
-
-    sendBtn.addEventListener('click', askQuestion);
-    questionInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') askQuestion();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => {
+                const base64Audio = reader.result.split(',')[1];
+                sendAudio(base64Audio);
+            };
+        };
+        mediaRecorder.start();
+        recordBtn.textContent = '⏹️ Остановить';
     });
+
+    async function sendAudio(base64Audio) {
+        addMessage('🎙️ Голосовой запрос...', true);
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audio_base64: base64Audio })
+        });
+        const data = await response.json();
+        if (data.audio_base64) {
+            // Проигрываем полученное аудио
+            const audio = new Audio(`data:audio/wav;base64,${data.audio_base64}`);
+            audio.play();
+            addMessage(data.text, false);
+        } else {
+            addMessage(data.response || data.error, false);
+        }
+    }
+
+    // Остальные функции (addMessage, отправка текста) – как раньше
 </script>
 </body>
 </html>
