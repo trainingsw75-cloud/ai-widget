@@ -2,68 +2,195 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Райский AI (Голос через SpeechKit)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Райский AI | Портфолио IT-решений</title>
     <style>
-        /* Ваши стили (оставьте как есть) */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0b3b3f, #1a5f5a, #2e8b6c);
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .chat-container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(12px);
+            border-radius: 48px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .chat-header {
+            background: rgba(10,30,28,0.7);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #f9f3c1, #d4e6b0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .subtitle {
+            color: #cfe8dc;
+            font-size: 0.9rem;
+        }
+        .chat-messages {
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            height: 350px;
+            overflow-y: auto;
+        }
+        .message {
+            background: rgba(255,255,255,0.85);
+            border-radius: 24px;
+            padding: 12px 18px;
+            margin-bottom: 15px;
+            color: #1e2f2c;
+        }
+        .message.user {
+            background: #e0f0e9;
+            border-bottom-right-radius: 6px;
+        }
+        .message.bot {
+            background: #ffffffda;
+            border-bottom-left-radius: 6px;
+            border-left: 4px solid #2e8b6c;
+        }
+        .input-area {
+            display: flex;
+            gap: 12px;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid rgba(255,255,255,0.15);
+        }
+        .input-area input {
+            flex: 1;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 60px;
+            padding: 12px 20px;
+            font-size: 1rem;
+            outline: none;
+        }
+        .input-area button {
+            background: #2e8b6c;
+            border: none;
+            border-radius: 60px;
+            padding: 0 28px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .input-area button:hover {
+            background: #3ba37f;
+            transform: scale(1.02);
+        }
+        .services {
+            background: rgba(0,0,0,0.3);
+            padding: 15px 20px;
+            font-size: 0.85rem;
+            color: #cfe8dc;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .services h3 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        .services ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .services li {
+            background: rgba(255,255,255,0.15);
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        footer {
+            text-align: center;
+            font-size: 0.7rem;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            color: #cfe8dc;
+        }
+        a { color: #d4e6b0; text-decoration: none; }
     </style>
 </head>
 <body>
 <div class="chat-container">
-    ... (хедер, окно чата)
-    <div class="input-area">
-        <input type="text" id="questionInput" placeholder="Или напишите текст...">
-        <button id="sendBtn">Отправить</button>
-        <button id="recordBtn">🎤 Записать</button>
+    <div class="chat-header">
+        <div class="logo">🌴 Райский AI 🌊</div>
+        <div class="subtitle">Ваш интеллектуальный помощник в мире IT и облачных технологий</div>
     </div>
+    <div class="chat-messages" id="chatMessages">
+        <div class="message bot">✨ Привет! Я AI-агент, обученный на вашей базе знаний. Могу помочь с миграцией почты, настройкой AD, переносом файлов, а также отвечать на любые вопросы. Спросите меня о чём угодно!</div>
+    </div>
+    <div class="input-area">
+        <input type="text" id="questionInput" placeholder="Напишите вопрос...">
+        <button id="sendBtn">Отправить</button>
+    </div>
+    <div class="services">
+        <h3>🚀 Услуги, которые я продвигаю:</h3>
+        <ul>
+            <li>📧 Миграция почты (M365, Google → Yandex 360)</li>
+            <li>🗂️ Перенос файлов (OneDrive, Google Drive)</li>
+            <li>🔗 Синхронизация с Active Directory</li>
+            <li>☁️ Консультации по Yandex Cloud</li>
+        </ul>
+        <div style="margin-top: 10px;">📩 Контакты: <strong>trainingsw75@mail.ru</strong> | <a href="https://github.com/trainingsw75-cloud/ai-widget" target="_blank">GitHub</a></div>
+    </div>
+    <footer>⚡ Работает на YandexGPT + RAG + SQLite</footer>
 </div>
+
 <script>
     const API_URL = 'https://d5devpnr02o9anr7lg0j.8wihnuyr.apigw.yandexcloud.net/';
-    let mediaRecorder;
-    let audioChunks = [];
+    const chatMessages = document.getElementById('chatMessages');
+    const questionInput = document.getElementById('questionInput');
+    const sendBtn = document.getElementById('sendBtn');
 
-    const recordBtn = document.getElementById('recordBtn');
-    recordBtn.addEventListener('click', async () => {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-            recordBtn.textContent = '🎤 Записать';
-            return;
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-        mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-        mediaRecorder.onstop = async () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const reader = new FileReader();
-            reader.readAsDataURL(audioBlob);
-            reader.onloadend = () => {
-                const base64Audio = reader.result.split(',')[1];
-                sendAudio(base64Audio);
-            };
-        };
-        mediaRecorder.start();
-        recordBtn.textContent = '⏹️ Остановить';
-    });
+    function addMessage(text, isUser) {
+        const div = document.createElement('div');
+        div.className = `message ${isUser ? 'user' : 'bot'}`;
+        div.textContent = text;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
-    async function sendAudio(base64Audio) {
-        addMessage('🎙️ Голосовой запрос...', true);
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ audio_base64: base64Audio })
-        });
-        const data = await response.json();
-        if (data.audio_base64) {
-            // Проигрываем полученное аудио
-            const audio = new Audio(`data:audio/wav;base64,${data.audio_base64}`);
-            audio.play();
-            addMessage(data.text, false);
-        } else {
-            addMessage(data.response || data.error, false);
+    async function ask() {
+        const question = questionInput.value.trim();
+        if (!question) return;
+        addMessage(question, true);
+        questionInput.value = '';
+        addMessage('⏳ Думаю...', false);
+        try {
+            const resp = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: question })
+            });
+            const data = await resp.json();
+            chatMessages.removeChild(chatMessages.lastChild);
+            const answer = data.response || data.body || 'Не удалось получить ответ';
+            addMessage(answer, false);
+        } catch (err) {
+            chatMessages.removeChild(chatMessages.lastChild);
+            addMessage('❌ Ошибка соединения', false);
+            console.error(err);
         }
     }
 
-    // Остальные функции (addMessage, отправка текста) – как раньше
+    sendBtn.addEventListener('click', ask);
+    questionInput.addEventListener('keypress', e => { if (e.key === 'Enter') ask(); });
 </script>
 </body>
 </html>
