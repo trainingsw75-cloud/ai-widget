@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Райский AI | Ваш персональный помощник</title>
+    <title>Райский AI | Голосовой помощник</title>
     <style>
         * {
             margin: 0;
@@ -23,7 +23,6 @@
             overflow-x: hidden;
         }
 
-        /* Анимированное небо с облаками и звёздами */
         body::before {
             content: '';
             position: absolute;
@@ -62,7 +61,6 @@
             border-radius: 48px;
             box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.15);
             overflow: hidden;
-            transition: all 0.3s ease;
         }
 
         .chat-header {
@@ -137,6 +135,7 @@
             gap: 14px;
             background: rgba(0, 0, 0, 0.2);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
+            align-items: center;
         }
 
         .input-area input {
@@ -176,6 +175,29 @@
             box-shadow: 0 6px 14px rgba(0,0,0,0.2);
         }
 
+        .mic-btn {
+            background: #2e8b6c;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            padding: 0;
+            font-size: 1.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mic-btn.recording {
+            background: #e63946;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         .chat-messages::-webkit-scrollbar {
             width: 6px;
         }
@@ -204,6 +226,7 @@
             .logo { font-size: 1.8rem; }
             .input-area { padding: 16px 20px 24px; }
             .input-area button { padding: 0 20px; }
+            .mic-btn { width: 42px; height: 42px; font-size: 1.2rem; }
         }
     </style>
 </head>
@@ -214,18 +237,19 @@
         <div class="logo">
             <span>🌴</span> Райский AI <span>🌊</span>
         </div>
-        <div class="subtitle">Ваш добрый помощник с доступом к знаниям и данным</div>
+        <div class="subtitle">Ваш голосовой помощник с доступом к данным</div>
     </div>
 
     <div class="chat-messages" id="chatMessages">
-        <div class="message bot">✨ Приветствую в райском уголке! Задайте любой вопрос, и я помогу.<br>Например: «Покажи топ‑5 сотрудников» или «сделай таблицу».</div>
+        <div class="message bot">✨ Приветствую в райском уголке! Задайте любой вопрос голосом или текстом.<br>Например: «Покажи топ‑5 сотрудников» или «сделай таблицу».</div>
     </div>
 
     <div class="input-area">
-        <input type="text" id="questionInput" placeholder="Напишите свой вопрос..." autocomplete="off">
+        <input type="text" id="questionInput" placeholder="Напишите или скажите вопрос..." autocomplete="off">
         <button id="sendBtn">Отправить ✨</button>
+        <button id="micBtn" class="mic-btn" title="Голосовой ввод">🎤</button>
     </div>
-    <footer>⚡ AI на основе YandexGPT • RAG • Работа с данными</footer>
+    <footer>⚡ AI на основе YandexGPT • RAG • Голосовое управление</footer>
 </div>
 
 <script>
@@ -233,7 +257,9 @@
     const chatMessages = document.getElementById('chatMessages');
     const questionInput = document.getElementById('questionInput');
     const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
 
+    // --- Функция для добавления сообщения ---
     function addMessage(text, isUser = false) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
@@ -242,6 +268,24 @@
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
+    // --- Озвучивание ответа (Speech Synthesis) ---
+    function speakText(text) {
+        if (!window.speechSynthesis) {
+            console.warn("Speech Synthesis not supported");
+            return;
+        }
+        // Останавливаем текущую речь, если она есть
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // --- Отправка вопроса к AI ---
     async function askQuestion() {
         const question = questionInput.value.trim();
         if (!question) return;
@@ -261,11 +305,59 @@
             chatMessages.removeChild(chatMessages.lastChild);
             const answer = data.response || data.body || 'Не удалось получить ответ';
             addMessage(answer, false);
+            // Озвучиваем ответ
+            speakText(answer);
         } catch (error) {
             chatMessages.removeChild(chatMessages.lastChild);
             addMessage('❌ Ошибка соединения. Попробуйте позже.', false);
             console.error(error);
         }
+    }
+
+    // --- Голосовой ввод (Speech Recognition) ---
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        let isRecording = false;
+
+        micBtn.addEventListener('click', () => {
+            if (isRecording) {
+                recognition.stop();
+                return;
+            }
+            recognition.start();
+            micBtn.classList.add('recording');
+            micBtn.textContent = '⏺️';
+            isRecording = true;
+        });
+
+        recognition.addEventListener('result', (event) => {
+            const speechToText = event.results[0][0].transcript;
+            questionInput.value = speechToText;
+            // Автоматически отправляем вопрос после распознавания
+            askQuestion();
+        });
+
+        recognition.addEventListener('end', () => {
+            micBtn.classList.remove('recording');
+            micBtn.textContent = '🎤';
+            isRecording = false;
+        });
+
+        recognition.addEventListener('error', (event) => {
+            console.error('Ошибка распознавания:', event.error);
+            micBtn.classList.remove('recording');
+            micBtn.textContent = '🎤';
+            isRecording = false;
+            addMessage('❌ Не удалось распознать голос. Попробуйте еще раз.', false);
+        });
+    } else {
+        micBtn.style.display = 'none';
+        console.warn('Web Speech API не поддерживается вашим браузером.');
     }
 
     sendBtn.addEventListener('click', askQuestion);
