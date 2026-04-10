@@ -1,861 +1,1184 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI IT-Консультант | Миграция, AD, Облака</title>
+<!DOCTYPE html><html lang="ru"><head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Анализ программной архитектуры: Два репозитория и семантика агента</title>
+    <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary: #1e293b;
+            --secondary: #475569;
+            --accent: #0f172a;
+            --surface: #f8fafc;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
         }
-
+        
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #16213e 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            position: relative;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            color: var(--text);
         }
-
-        .particles {
+        
+        .serif {
+            font-family: 'Playfair Display', serif;
+        }
+        
+        .toc-fixed {
             position: fixed;
-            top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: #00f0ff;
-            border-radius: 50%;
-            opacity: 0;
-            animation: float 15s infinite;
-            box-shadow: 0 0 10px #00f0ff;
-        }
-
-        @keyframes float {
-            0% {
-                opacity: 0;
-                transform: translateY(100vh) scale(0);
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-100vh) scale(1.5);
-            }
-        }
-
-        .chat-container {
-            width: 90%;
-            max-width: 800px;
-            height: 85vh;
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 30px;
-            box-shadow: 
-                0 25px 50px -12px rgba(0, 0, 0, 0.5),
-                0 0 100px rgba(0, 240, 255, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-            z-index: 1;
-        }
-
-        .chat-header {
-            padding: 25px 30px;
-            background: linear-gradient(90deg, rgba(0, 240, 255, 0.1) 0%, rgba(57, 255, 20, 0.05) 100%);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .bot-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #00f0ff 0%, #39ff14 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            position: relative;
-            box-shadow: 0 0 30px rgba(0, 240, 255, 0.5);
-        }
-
-        .bot-avatar::after {
-            content: '';
-            position: absolute;
-            inset: -5px;
-            border-radius: 50%;
-            border: 2px solid transparent;
-            border-top-color: #00f0ff;
-            border-right-color: #39ff14;
-            animation: spin 3s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .status-indicator {
-            position: absolute;
-            bottom: 2px;
-            right: 2px;
-            width: 12px;
-            height: 12px;
-            background: #39ff14;
-            border-radius: 50%;
-            box-shadow: 0 0 10px #39ff14;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.8; }
-        }
-
-        .header-info h1 {
-            color: #fff;
-            font-size: 1.3rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-
-        .header-info p {
-            color: #00f0ff;
-            font-size: 0.85rem;
-            margin-top: 4px;
-            opacity: 0.9;
-        }
-
-        .chat-messages {
-            flex: 1;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
             overflow-y: auto;
+            z-index: 50;
+            padding: 2rem 1.5rem;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            min-height: 100vh;
+        }
+        
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .bento-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
+        }
+        
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 4rem 0;
+        }
+        
+        .citation {
+            color: var(--primary);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--primary);
+            transition: all 0.2s ease;
+        }
+        
+        .citation:hover {
+            background: rgba(30, 41, 59, 0.05);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        
+        .quote-block {
+            border-left: 4px solid var(--primary);
+            background: var(--surface);
+            padding: 2rem;
+            margin: 2rem 0;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+        }
+        
+        /* Mermaid diagram styling */
+        .mermaid-container {
+            display: flex;
+            justify-content: center;
+            min-height: 300px;
+            max-height: 800px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
             padding: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .chat-messages::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: rgba(0, 240, 255, 0.3);
-            border-radius: 3px;
-        }
-
-        .message {
-            max-width: 80%;
-            padding: 18px 22px;
-            border-radius: 20px;
-            line-height: 1.6;
-            font-size: 0.95rem;
+            margin: 30px 0;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
             position: relative;
-            animation: messageAppear 0.4s ease-out;
+            overflow: hidden;
         }
 
-        @keyframes messageAppear {
-            from {
-                opacity: 0;
-                transform: translateY(20px) scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .message.bot {
-            background: rgba(0, 240, 255, 0.08);
-            border: 1px solid rgba(0, 240, 255, 0.2);
-            color: #e0f7ff;
-            align-self: flex-start;
-            border-bottom-left-radius: 5px;
-        }
-
-        .message.user {
-            background: linear-gradient(135deg, rgba(57, 255, 20, 0.15) 0%, rgba(0, 240, 255, 0.1) 100%);
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            color: #fff;
-            align-self: flex-end;
-            border-bottom-right-radius: 5px;
-        }
-
-        .typing-cursor {
-            display: inline-block;
-            width: 2px;
-            height: 1.2em;
-            background: #00f0ff;
-            margin-left: 5px;
-            animation: blink 1s infinite;
-            vertical-align: middle;
-        }
-
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
-        }
-
-        .quick-questions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            padding: 0 30px 20px;
-        }
-
-        .quick-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            color: #00f0ff;
-            padding: 10px 18px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .quick-btn:hover {
-            background: rgba(0, 240, 255, 0.2);
-            border-color: #00f0ff;
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .report-section {
-            padding: 0 30px 15px;
-            display: none;
-        }
-
-        .report-section.visible {
-            display: block;
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .report-btn {
-            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-            border: none;
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .report-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(255, 107, 53, 0.6);
-        }
-
-        .report-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .chat-input-area {
-            padding: 25px 30px;
-            background: rgba(0, 0, 0, 0.2);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .input-wrapper {
-            flex: 1;
-            position: relative;
-        }
-
-        .chat-input {
+        .mermaid-container .mermaid {
             width: 100%;
-            padding: 16px 25px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 30px;
-            color: #fff;
-            font-size: 1rem;
-            outline: none;
-            transition: all 0.3s ease;
+            max-width: 100%;
+            height: 100%;
+            cursor: grab;
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none; /* 防止触摸设备上的默认行为 */
+            -webkit-user-select: none; /* 防止文本选择 */
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
-        .chat-input::placeholder {
-            color: rgba(255, 255, 255, 0.4);
+        .mermaid-container .mermaid svg {
+            max-width: 100%;
+            height: 100%;
+            display: block;
+            margin: 0 auto;
         }
 
-        .chat-input:focus {
-            border-color: #00f0ff;
-            box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
-            background: rgba(255, 255, 255, 0.08);
+        .mermaid-container .mermaid:active {
+            cursor: grabbing;
         }
 
-        .mic-btn {
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(0, 240, 255, 0.3);
+        .mermaid-container.zoomed .mermaid {
+            height: 100%;
+            width: 100%;
+            cursor: grab;
+        }
+
+        .mermaid-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 20;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .mermaid-control-btn {
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 10px;
             cursor: pointer;
+            transition: all 0.2s ease;
+            color: #374151;
+            font-size: 14px;
+            min-width: 36px;
+            height: 36px;
+            text-align: center;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
         }
 
-        .mic-btn:hover {
-            background: rgba(0, 240, 255, 0.2);
-            border-color: #00f0ff;
+        .mermaid-control-btn:hover {
+            background: #f8fafc;
+            border-color: #3b82f6;
+            color: #3b82f6;
+            transform: translateY(-1px);
         }
 
-        .mic-btn.recording {
-            background: #ff4444;
-            border-color: #ff4444;
-            animation: pulse-red 1s infinite;
-        }
-
-        @keyframes pulse-red {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
-            50% { box-shadow: 0 0 0 15px rgba(255, 68, 68, 0); }
-        }
-
-        .send-btn {
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #00f0ff 0%, #39ff14 100%);
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 30px rgba(0, 240, 255, 0.4);
-            flex-shrink: 0;
-        }
-
-        .send-btn:hover {
-            transform: scale(1.1) rotate(10deg);
-            box-shadow: 0 0 50px rgba(0, 240, 255, 0.6);
-        }
-
-        .send-btn:active {
+        .mermaid-control-btn:active {
             transform: scale(0.95);
         }
-
-        .send-btn svg {
-            width: 24px;
-            height: 24px;
-            fill: #0a0a1a;
+        
+        /* Enhanced contrast for mermaid elements */
+        .mermaid .node rect,
+        .mermaid .node circle,
+        .mermaid .node ellipse,
+        .mermaid .node polygon {
+            stroke-width: 2.5px !important;
+            stroke: var(--accent) !important;
         }
-
-        .loading {
-            display: none;
-            align-self: flex-start;
-            padding: 20px;
+        
+        .mermaid .node .label {
+            color: var(--text) !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            font-family: 'Inter', sans-serif !important;
         }
-
-        .loading.active {
-            display: flex;
-            gap: 8px;
+        
+        .mermaid .edgePath .path {
+            stroke: var(--secondary) !important;
+            stroke-width: 2.5px !important;
         }
-
-        .loading-dot {
-            width: 10px;
-            height: 10px;
-            background: #00f0ff;
-            border-radius: 50%;
-            animation: loadingBounce 1.4s ease-in-out infinite both;
+        
+        .mermaid .edgeLabel {
+            background-color: white !important;
+            color: var(--text) !important;
+            font-weight: 600 !important;
+            padding: 4px 8px !important;
+            border-radius: 4px !important;
+            border: 1px solid var(--border) !important;
+            font-family: 'Inter', sans-serif !important;
         }
-
-        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
-        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes loadingBounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
+        
+        /* Specific node color contrasts */
+        .mermaid .node[id*="A"] rect,
+        .mermaid .node[id*="A"] polygon,
+        .mermaid .node[id*="A"] circle {
+            fill: #e3f2fd !important;
+            stroke: #1976d2 !important;
+            stroke-width: 3px !important;
         }
-
-        @media (max-width: 600px) {
-            .chat-container {
-                width: 95%;
-                height: 90vh;
-                border-radius: 20px;
+        
+        .mermaid .node[id*="B"] rect,
+        .mermaid .node[id*="B"] polygon,
+        .mermaid .node[id*="B"] circle {
+            fill: #f3e5f5 !important;
+            stroke: #7b1fa2 !important;
+            stroke-width: 3px !important;
+        }
+        
+        .mermaid .node[id*="C"] rect,
+        .mermaid .node[id*="C"] polygon,
+        .mermaid .node[id*="C"] circle {
+            fill: #e8f5e8 !important;
+            stroke: #388e3c !important;
+            stroke-width: 3px !important;
+        }
+        
+        .mermaid .node[id*="D"] rect,
+        .mermaid .node[id*="D"] polygon,
+        .mermaid .node[id*="D"] circle {
+            fill: #fff3e0 !important;
+            stroke: #f57c00 !important;
+            stroke-width: 3px !important;
+        }
+        
+        .mermaid .node[id*="E"] rect,
+        .mermaid .node[id*="E"] polygon,
+        .mermaid .node[id*="E"] circle {
+            fill: #fce4ec !important;
+            stroke: #c2185b !important;
+            stroke-width: 3px !important;
+        }
+        
+        .mermaid .node[id*="F"] rect,
+        .mermaid .node[id*="F"] polygon,
+        .mermaid .node[id*="F"] circle {
+            fill: #f5f5f5 !important;
+            stroke: #424242 !important;
+            stroke-width: 3px !important;
+        }
+        
+        /* Ensure all text in mermaid is readable */
+        .mermaid text {
+            fill: var(--text) !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            font-family: 'Inter', sans-serif !important;
+        }
+        
+        /* Responsive adjustments for mermaid controls */
+        @media (max-width: 1024px) {
+            .mermaid-control-btn:not(.reset-zoom) {
+                display: none;
             }
-            
-            .chat-header {
-                padding: 20px;
-            }
-            
-            .header-info h1 {
-                font-size: 1.1rem;
-            }
-            
-            .message {
-                max-width: 90%;
-                padding: 14px 18px;
-            }
-            
-            .quick-questions {
-                padding: 0 20px 15px;
-            }
-            
-            .report-section {
-                padding: 0 20px 10px;
-            }
-            
-            .chat-input-area {
-                padding: 20px;
-                gap: 10px;
-            }
-            
-            .mic-btn, .send-btn {
-                width: 50px;
-                height: 50px;
+            .mermaid-controls {
+                top: auto;
+                bottom: 15px;
+                right: 15px;
             }
         }
-
-        .brand-logo {
-            position: fixed;
-            top: 30px;
-            left: 30px;
-            color: #fff;
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            z-index: 10;
-            text-transform: uppercase;
-            background: linear-gradient(90deg, #00f0ff 0%, #39ff14 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+        
+        .toc-link {
+            display: block;
+            padding: 0.75rem 0;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
         }
-
-        .brand-tagline {
-            position: fixed;
-            top: 60px;
-            left: 30px;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 0.85rem;
-            z-index: 10;
+        
+        .toc-link:hover {
+            color: white;
+            padding-left: 0.5rem;
+        }
+        
+        .toc-link.level-2 {
+            padding-left: 1rem;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .toc-link.level-3 {
+            padding-left: 2rem;
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 1024px) {
+            .toc-fixed {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .hero-grid {
+                grid-template-columns: 1fr;
+            }
+            .mermaid-container {
+                overflow-x: auto;
+            }
+            .mermaid-container .mermaid {
+                min-width: 600px;
+            }
         }
     </style>
+  <base target="_blank">
 </head>
-<body>
-    <div class="particles" id="particles"></div>
-    <div class="brand-logo">⚡ ATOM IT</div>
-    <div class="brand-tagline">Интеллектуальные решения для бизнеса</div>
 
-    <div class="chat-container">
-        <div class="chat-header">
-            <div class="bot-avatar">
-                🤖
-                <div class="status-indicator"></div>
+  <body class="bg-slate-50">
+    <!-- Fixed Table of Contents -->
+    <nav class="toc-fixed">
+      <h3 class="text-lg font-bold mb-6 text-white">Содержание</h3>
+      <div class="space-y-1">
+        <a href="#executive-summary" class="toc-link">Краткий ответ</a>
+        <a href="#analysis" class="toc-link">Анализ запроса</a>
+        <a href="#repositories" class="toc-link level-2">Репозитории GitHub</a>
+        <a href="#emotional-tone" class="toc-link level-2">Эмоциональная окраска</a>
+        <a href="#linguistic-context" class="toc-link">Лингвистический контекст</a>
+        <a href="#dialect-research" class="toc-link level-2">Исследование диалектов</a>
+        <a href="#semantic-findings" class="toc-link level-2">Семантические находки</a>
+        <a href="#technical-analysis" class="toc-link">Технический анализ</a>
+        <a href="#architecture" class="toc-link level-2">Архитектура системы</a>
+        <a href="#synchronization" class="toc-link level-2">Синхронизация</a>
+        <a href="#recommendations" class="toc-link">Рекомендации</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Hero Section -->
+      <section class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-slate-900/5 to-transparent"></div>
+        <div class="relative container mx-auto px-4 sm:px-6 md:px-8 py-16">
+          <div class="hero-grid max-w-7xl mx-auto">
+            <!-- Left Column: Title and Summary -->
+            <div class="space-y-8">
+              <div class="space-y-6">
+                <h1 class="serif text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 leading-tight italic">
+                  Анализ программной
+                  <br/>
+                  <span class="text-blue-900">архитектуры</span>
+                </h1>
+                <p class="text-lg sm:text-xl text-slate-600 font-light leading-relaxed">
+                  Исследование семантики двух репозиториев GitHub и трансформация эмоциональной коммуникации в технический контекст
+                </p>
+              </div>
+
+              <!-- Executive Summary Card -->
+              <div id="executive-summary" class="bento-card bg-white/80 backdrop-blur-sm border-2 border-blue-100">
+                <div class="flex items-center mb-4">
+                  <i class="fas fa-microscope text-2xl text-blue-600 mr-3"></i>
+                  <h3 class="serif text-xl font-semibold text-slate-900">Краткий ответ</h3>
+                </div>
+                <p class="text-slate-700 leading-relaxed">
+                  <strong>Да, наличие двух репозиториев не только возможно, но и является стандартной практикой.</strong> Количество репозиториев не определяет «силу» агента — это архитектурное решение о разделении ответственности. Синхронное обновление скорее указывает на связанность компонентов, чем на их дублирование.
+                </p>
+              </div>
             </div>
-            <div class="header-info">
-                <h1>AI IT-Консультант</h1>
-                <p>⚡ Онлайн • Готов помочь с миграцией и настройкой</p>
+
+            <!-- Right Column: Visual Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-4">
+                <div class="bento-card bg-gradient-to-br from-blue-50 to-indigo-50">
+                  <i class="fas fa-code-branch text-3xl text-blue-600 mb-3"></i>
+                  <h4 class="font-semibold text-slate-900 mb-2">Разделение ответственности</h4>
+                  <p class="text-sm text-slate-600">Модульная архитектура системы</p>
+                </div>
+                <div class="bento-card bg-gradient-to-br from-green-50 to-emerald-50">
+                  <i class="fas fa-sync-alt text-3xl text-green-600 mb-3"></i>
+                  <h4 class="font-semibold text-slate-900 mb-2">Синхронизация</h4>
+                  <p class="text-sm text-slate-600">Обновление каждые 2 часа</p>
+                </div>
+              </div>
+              <div class="space-y-4">
+                <div class="bento-card bg-gradient-to-br from-purple-50 to-violet-50">
+                  <i class="fas fa-brain text-3xl text-purple-600 mb-3"></i>
+                  <h4 class="font-semibold text-slate-900 mb-2">AI-виджет</h4>
+                  <p class="text-sm text-slate-600">Интерактивный компонент</p>
+                </div>
+                <div class="bento-card bg-gradient-to-br from-orange-50 to-amber-50">
+                  <i class="fas fa-language text-3xl text-orange-600 mb-3"></i>
+                  <h4 class="font-semibold text-slate-900 mb-2">Семантика</h4>
+                  <p class="text-sm text-slate-600">Китайские диалектные коннотации</p>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
+      </section>
 
-        <div class="chat-messages" id="chatMessages">
-            <div class="message bot" id="welcomeMessage">
-                Привет! Я ваш персональный AI-ассистент по IT-инфраструктуре.
-                Моя специализация: миграция почты (Exchange в Exchange Online, Google Workspace), настройка Active Directory и Azure AD, перенос файлов в облако (OneDrive, SharePoint, Яндекс.Диск), автоматизация бизнес-процессов.
-                Новое: говорите — я слушаю! Нажмите на микрофон.
-                Выберите быстрый вопрос или напишите свой!
+      <!-- Main Analysis -->
+      <div class="container mx-auto px-8 py-16 max-w-6xl">
+
+        <!-- Analysis Section -->
+        <section id="analysis" class="mb-16">
+          <h2 class="serif text-4xl font-bold text-slate-900 mb-8">Анализ пользовательского запроса</h2>
+
+          <div id="repositories" class="mb-12">
+            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Исходные объекты запроса</h3>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+              <div class="bento-card bg-blue-50 border-blue-200">
+                <h4 class="font-semibold text-blue-900 mb-3 flex items-center">
+                  <i class="fas fa-folder-open mr-2"></i>
+                  trainingsw75-cloud.github.io
+                </h4>
+                <ul class="space-y-2 text-sm text-blue-800">
+                  <li>• Публичный репозиторий GitHub Pages</li>
+                  <li>• Обучающие материалы по облачным технологиям</li>
+                  <li>• Содержимое: HTML</li>
+                  <li>• Обновление: 2 часа назад</li>
+                </ul>
+              </div>
+
+              <div class="bento-card bg-purple-50 border-purple-200">
+                <h4 class="font-semibold text-purple-900 mb-3 flex items-center">
+                  <i class="fas fa-robot mr-2"></i>
+                  ai-widget
+                </h4>
+                <ul class="space-y-2 text-sm text-purple-800">
+                  <li>• Публичный репозиторий</li>
+                  <li>• Компонент искусственного интеллекта</li>
+                  <li>• Содержимое: HTML</li>
+                  <li>• Обновление: 2 часа назад</li>
+                </ul>
+              </div>
             </div>
-        </div>
 
-        <div class="quick-questions">
-            <button class="quick-btn" onclick="sendQuick('Как перенести почту в Exchange Online?')">📧 Миграция почты</button>
-            <button class="quick-btn" onclick="sendQuick('Настройка Active Directory')">🏢 Настройка AD</button>
-            <button class="quick-btn" onclick="sendQuick('Перенос файлов в облако')">☁️ Облачное хранилище</button>
-            <button class="quick-btn" onclick="sendQuick('Стоимость услуг')">💰 Стоимость</button>
-        </div>
+            <p class="text-slate-700 mb-6">
+              <strong>Синхронность временных меток</strong> — ключевой технический индикатор. Обновление обоих репозиториев с точностью до часа указывает на возможные сценарии: автоматизированную систему CI/CD, ручную координацию разработчиков или функциональную взаимосвязь компонентов.
+            </p>
+          </div>
 
-        <div class="report-section" id="reportSection">
-            <button class="report-btn" onclick="generateReport()" id="reportBtn">
-                <span>📋</span>
-                <span>Скачать IT-аудит (PDF)</span>
-            </button>
-        </div>
+          <div id="emotional-tone" class="mb-12">
+            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Эмоциональная окраска запроса</h3>
 
-        <div class="loading" id="loading">
-            <div class="loading-dot"></div>
-            <div class="loading-dot"></div>
-            <div class="loading-dot"></div>
-        </div>
-
-        <div class="chat-input-area">
-            <div class="input-wrapper">
-                <input type="text" class="chat-input" id="userInput" 
-                       placeholder="Опишите задачу или нажмите микрофон для голоса..." 
-                       onkeypress="handleKeyPress(event)">
+            <div class="quote-block">
+              <p class="text-lg mb-4">
+                &#34;МОЖЕТ 2 РЕПОЗИТОРИЯ? ОН СЛАБЫЙ АГЕНТ ТАКОЙ ЖЕ ТУПОЙ КАК И ТЫ!&#34;
+              </p>
+              <p class="text-slate-600">
+                Лингвистическая структура демонстрирует выраженную эмоциональную нагруженность, переходящую в агрессивную коммуникативную регистрацию.
+              </p>
             </div>
-            <button class="mic-btn" id="micBtn" onclick="toggleVoiceInput()" title="Голосовой ввод">
-                🎤
-            </button>
-            <button class="send-btn" onclick="sendMessage()">
-                <svg viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-            </button>
-        </div>
-    </div>
+
+            <div class="grid md:grid-cols-3 gap-6 mt-8">
+              <div class="bento-card bg-red-50 border-red-200">
+                <h4 class="font-semibold text-red-900 mb-3">Когнитивный диссонас</h4>
+                <p class="text-sm text-red-800">
+                  Вопрос о «двух репозиториях» содержит предпосылку о ненормативности ситуации
+                </p>
+              </div>
+              <div class="bento-card bg-orange-50 border-orange-200">
+                <h4 class="font-semibold text-orange-900 mb-3">Ad hominem атака</h4>
+                <p class="text-sm text-orange-800">
+                  Сравнение «ТАКОЙ ЖЕ ТУПОЙ КАК И ТЫ» реализует прямую персонализацию
+                </p>
+              </div>
+              <div class="bento-card bg-yellow-50 border-yellow-200">
+                <h4 class="font-semibold text-yellow-900 mb-3">Техническая метафора</h4>
+                <p class="text-sm text-yellow-800">
+                  Характеристика «СЛАБЫЙ АГЕНТ» трансформирует обсуждение в оценку компетентности
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Linguistic Context Section -->
+        <section id="linguistic-context" class="mb-16">
+          <h2 class="serif text-4xl font-bold text-slate-900 mb-8">Лингвистический контекст исследования</h2>
+
+          <div id="dialect-research" class="mb-12">
+            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Тематика предшествующих исследований</h3>
+
+            <div class="bento-card mb-8">
+              <img src="https://kimi-web-img.moonshot.cn/img/pic.616pic.com/8239f97666883e2b9a430bf42bc4c2cc834fd246.jpg" alt="Китайский иероглиф 苕 на традиционном фоне" class="w-full h-48 object-cover rounded-lg mb-6" size="medium" aspect="wide" color="white" style="photo" query="苕 Chinese character calligraphy" referrerpolicy="no-referrer" data-modified="1" data-score="0.00"/>
+
+              <p class="text-slate-700 mb-6">
+                Предшествующий диалогический контекст был сосредоточен на области <strong>китайской диалектной лексикологии</strong>, с конкретной фокусировкой на полисемантическом иероглифе <strong>«苕»</strong> (tiáo/sháo). Исследование включало многоступенчатый процесс верификации гипотез о семантической эволюции лексемы.
+              </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+              <div class="bento-card bg-green-50 border-green-200">
+                <h4 class="font-semibold text-green-900 mb-4">Хубэйский диалект</h4>
+                <ul class="space-y-2 text-sm text-green-800">
+                  <li>• <strong>苕货</strong> (sháo huò) — дурак, болван</li>
+                  <li>• <strong>哈巴苕</strong> (hǎ ba sháo) — усиленная форма</li>
+                  <li>• <strong>苕坯子</strong> (sháo pī zi) — недоделанный человек</li>
+                  <li>• <strong>体面苕</strong> (tǐ miàn sháo) — приличный снаружи, глупый внутри</li>
+                </ul>
+              </div>
+
+              <div class="bento-card bg-blue-50 border-blue-200">
+                <h4 class="font-semibold text-blue-900 mb-4">Сычуаньский диалект</h4>
+                <ul class="space-y-2 text-sm text-blue-800">
+                  <li>• <strong>苕头苕脑</strong> (sháo tóu sháo nǎo) — консервативное мышление</li>
+                  <li>• <strong>红配绿，苕得哭</strong> — нелепое сочетание</li>
+                  <li>• Эстетическая коннотация «деревенскости»</li>
+                  <li>• Социально-эстетическая оценка</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div id="semantic-findings" class="mb-12">
+            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Ключевые находки</h3>
+
+            <div class="bento-card bg-slate-100">
+              <h4 class="font-semibold text-slate-900 mb-4">Механизмы семантической трансформации</h4>
+              <div class="space-y-4">
+                <div class="flex items-start space-x-3">
+                  <div class="w-2 h-2 bg-slate-600 rounded-full mt-2"></div>
+                  <p class="text-slate-700">
+                    <strong>Когнитивная метафора:</strong> Перенос характеристик растения (батата) на человеческие качества
+                  </p>
+                </div>
+                <div class="flex items-start space-x-3">
+                  <div class="w-2 h-2 bg-slate-600 rounded-full mt-2"></div>
+                  <p class="text-slate-700">
+                    <strong>Диалектная диффузия:</strong> Распространение через миграционные процессы («湖广填四川»)
+                  </p>
+                </div>
+                <div class="flex items-start space-x-3">
+                  <div class="w-2 h-2 bg-slate-600 rounded-full mt-2"></div>
+                  <p class="text-slate-700">
+                    <strong>Регистровая вариативность:</strong> От ругательства до ласкового обращения
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p class="text-slate-700 mt-6">
+              Исследование выявило <a href="#" class="citation">百度百科</a> как основной авторитетный источник, подтвердивший пейоративную семантику иероглифа в хубэйском диалекте. Методология включала систематический поиск на китайских платформах и критическую оценку источников.
+            </p>
+          </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Technical Analysis Section -->
+        <section id="technical-analysis" class="mb-16">
+          <h2 class="serif text-4xl font-bold text-slate-900 mb-8">Техническая структура репозиториев</h2>
+
+          <div id="architecture" class="mb-12">
+            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Архитектурный анализ</h3>
+
+            <div class="grid md:grid-cols-2 gap-8 mb-8">
+              <div class="bento-card">
+                <h4 class="font-semibold text-slate-900 mb-4 flex items-center">
+                  <i class="fas fa-graduation-cap text-blue-600 mr-2"></i>
+                  Обучающий портал
+                </h4>
+                <p class="text-slate-700 mb-4">
+                  <strong>trainingsw75-cloud.github.io</strong> — статический сайт GitHub Pages, специализированный на обучении облачным технологиям.
+                </p>
+                <div class="space-y-2 text-sm text-slate-600">
+                  <div class="flex items-center">
+                    <i class="fas fa-check text-green-500 mr-2"></i>
+                    Структурированный контент (Markdown/HTML)
+                  </div>
+                  <div class="flex items-center">
+                    <i class="fas fa-check text-green-500 mr-2"></i>
+                    Система навигации по модулям
+                  </div>
+                  <div class="flex items-center">
+                    <i class="fas fa-check text-green-500 mr-2"></i>
+                    Интерактивные элементы и sandboxes
+                  </div>
+                </div>
+              </div>
+
+              <div class="bento-card">
+                <h4 class="font-semibold text-slate-900 mb-4 flex items-center">
+                  <i class="fas fa-robot text-purple-600 mr-2"></i>
+                  AI-компонент
+                </h4>
+                <p class="text-slate-700 mb-4">
+                  <strong>ai-widget</strong> — автономный, переиспользуемый компонент пользовательского интерфейса с AI-функциональностью.
+                </p>
+                <div class="space-y-2 text-sm text-slate-600">
+                  <div class="flex items-center">
+                    <i class="fas fa-check text-green-500 mr-2"></i>
+                    Встраиваемый интерактивный элемент
+                  </div>
+                  <div class="flex items-center">
+                    <i class="fas fa-check text-green-500 mr-2"></i>
+                    Функциональность обработки естественного языка
+                  </div>
+                  <div class="flex items-center">
+                    <i class="fas fa-check text-green-500 mr-2"></i>
+                    Инкапсулированная логика
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mermaid-container">
+              <div class="mermaid-controls">
+                <button class="mermaid-control-btn zoom-in" title="Увеличить">
+                  <i class="fas fa-search-plus"></i>
+                </button>
+                <button class="mermaid-control-btn zoom-out" title="Уменьшить">
+                  <i class="fas fa-search-minus"></i>
+                </button>
+                <button class="mermaid-control-btn reset-zoom" title="Сбросить">
+                  <i class="fas fa-expand-arrows-alt"></i>
+                </button>
+                <button class="mermaid-control-btn fullscreen" title="Полный экран">
+                  <i class="fas fa-expand"></i>
+                </button>
+              </div>
+              <div class="mermaid" id="architecture-diagram">
+                graph TB
+                A[&#34;trainingsw75-cloud.github.io&#34;] --&gt; B[&#34;GitHub Pages&#34;]
+                C[&#34;ai-widget&#34;] --&gt; D[&#34;NPM Package&#34;]
+                B --&gt; E[&#34;Обучающий портал&#34;]
+                D --&gt; F[&#34;Встраиваемый компонент&#34;]
+                E --&gt; G[&#34;Пользовательский интерфейс&#34;]
+                F --&gt; G
+
+                style A fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#0f172a
+                style C fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#0f172a
+                style E fill:#e8f5e8,stroke:#388e3c,stroke-width:3px,color:#0f172a
+                style F fill:#fff3e0,stroke:#f57c00,stroke-width:3px,color:#0f172a
+                style G fill:#fce4ec,stroke:#c2185b,stroke-width:3px,color:#0f172a
+                style B fill:#f5f5f5,stroke:#424242,stroke-width:2px,color:#0f172a
+                style D fill:#f5f5f5,stroke:#424242,stroke-width:2px,color:#0f172a
+              </div>
+            </div>
+          </div>
+
+          <div id="synchronization" class="mb-12">
+            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Анализ синхронизации</h3>
+
+            <div class="bento-card bg-yellow-50 border-yellow-200 mb-8">
+              <h4 class="font-semibold text-yellow-900 mb-4">Возможные сценарии синхронизации</h4>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-yellow-200">
+                      <th class="text-left py-3 px-4 font-semibold">Сценарий</th>
+                      <th class="text-left py-3 px-4 font-semibold">Вероятность</th>
+                      <th class="text-left py-3 px-4 font-semibold">Диагностические признаки</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-yellow-100">
+                      <td class="py-3 px-4 font-medium">Единый CI/CD pipeline</td>
+                      <td class="py-3 px-4 text-green-700">Высокая</td>
+                      <td class="py-3 px-4 text-slate-600">.github/workflows/, идентичные коммиты</td>
+                    </tr>
+                    <tr class="border-b border-yellow-100">
+                      <td class="py-3 px-4 font-medium">Монорепозиторий с субмодулями</td>
+                      <td class="py-3 px-4 text-yellow-700">Средняя</td>
+                      <td class="py-3 px-4 text-slate-600">.gitmodules, специфическая структура</td>
+                    </tr>
+                    <tr class="border-b border-yellow-100">
+                      <td class="py-3 px-4 font-medium">Ручная координация</td>
+                      <td class="py-3 px-4 text-yellow-700">Средняя</td>
+                      <td class="py-3 px-4 text-slate-600">Разные сообщения коммитов, разница в минутах</td>
+                    </tr>
+                    <tr class="border-b border-yellow-100">
+                      <td class="py-3 px-4 font-medium">Зависимость через package manager</td>
+                      <td class="py-3 px-4 text-red-700">Низкая</td>
+                      <td class="py-3 px-4 text-slate-600">package.json, requirements.txt</td>
+                    </tr>
+                    <tr>
+                      <td class="py-3 px-4 font-medium">Совпадение</td>
+                      <td class="py-3 px-4 text-red-700">Низкая</td>
+                      <td class="py-3 px-4 text-slate-600">Статистический анализ частоты</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <p class="text-slate-700">
+              <strong>Техническое замечание:</strong> GitHub отображает время обновлений с дискретностью в один час («2 hours ago» может означать интервал 1:30–2:30). Синхронность, следовательно, указывает на скоординированные изменения, а не на идентичность содержимого.
+            </p>
+          </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Recommendations Section -->
+        <section id="recommendations" class="mb-16">
+          <h2 class="serif text-4xl font-bold text-slate-900 mb-8">Рекомендации и выводы</h2>
+
+          <div class="grid md:grid-cols-2 gap-8 mb-12">
+            <div class="bento-card bg-green-50 border-green-200">
+              <h3 class="font-semibold text-green-900 mb-4 flex items-center">
+                <i class="fas fa-check-circle mr-2"></i>
+                Архитектурные преимущества
+              </h3>
+              <ul class="space-y-3 text-green-800">
+                <li class="flex items-start">
+                  <i class="fas fa-arrow-right text-green-600 mr-2 mt-1 text-sm"></i>
+                  <span><strong>Разделение ответственности</strong> — каждый компонент имеет четко определенную функцию</span>
+                </li>
+                <li class="flex items-start">
+                  <i class="fas fa-arrow-right text-green-600 mr-2 mt-1 text-sm"></i>
+                  <span><strong>Модульность</strong> — возможность независимой эволюции компонентов</span>
+                </li>
+                <li class="flex items-start">
+                  <i class="fas fa-arrow-right text-green-600 mr-2 mt-1 text-sm"></i>
+                  <span><strong>Переиспользование</strong> — виджет может использоваться в других контекстах</span>
+                </li>
+                <li class="flex items-start">
+                  <i class="fas fa-arrow-right text-green-600 mr-2 mt-1 text-sm"></i>
+                  <span><strong>Тестируемость</strong> — изолированные компоненты легче тестировать</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="bento-card bg-red-50 border-red-200">
+              <h3 class="font-semibold text-red-900 mb-4 flex items-center">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                Технические заблуждения
+              </h3>
+              <ul class="space-y-3 text-red-800">
+                <li class="flex items-start">
+                  <i class="fas fa-times text-red-600 mr-2 mt-1 text-sm"></i>
+                  <span>Два репозитория ≠ дублирование (разные функции: сайт vs компонент)</span>
+                </li>
+                <li class="flex items-start">
+                  <i class="fas fa-times text-red-600 mr-2 mt-1 text-sm"></i>
+                  <span>Синхронное обновление ≠ идентичность (указывает на связанность)</span>
+                </li>
+                <li class="flex items-start">
+                  <i class="fas fa-times text-red-600 mr-2 mt-1 text-sm"></i>
+                  <span>Количество репозиториев ≠ сила агента (агентность определяется runtime)</span>
+                </li>
+                <li class="flex items-start">
+                  <i class="fas fa-times text-red-600 mr-2 mt-1 text-sm"></i>
+                  <span>Репозитории как хранилища ≠ агенты как исполняемые системы</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="bento-card bg-blue-50 border-blue-200 mb-8">
+            <h3 class="font-semibold text-blue-900 mb-6">Диагностическая процедура</h3>
+            <div class="grid md:grid-cols-3 gap-6">
+              <div>
+                <h4 class="font-medium text-blue-900 mb-3">1. Анализ истории коммитов</h4>
+                <p class="text-sm text-blue-800 mb-2">git log, GitHub Web Interface</p>
+                <p class="text-xs text-blue-600">Выявление паттернов синхронизации</p>
+              </div>
+              <div>
+                <h4 class="font-medium text-blue-900 mb-3">2. Изучение зависимостей</h4>
+                <p class="text-sm text-blue-800 mb-2">package.json, requirements.txt</p>
+                <p class="text-xs text-blue-600">Перекрёстные ссылки между репозиториями</p>
+              </div>
+              <div>
+                <h4 class="font-medium text-blue-900 mb-3">3. Функциональное тестирование</h4>
+                <p class="text-sm text-blue-800 mb-2">Browser DevTools, Network tab</p>
+                <p class="text-xs text-blue-600">Измерение функциональных характеристик</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="quote-block bg-gradient-to-r from-blue-50 to-indigo-50 border-l-blue-500">
+            <p class="text-lg text-slate-800 font-medium mb-4">
+              &#34;Синхронное обновление репозиториев — это не признак слабости, а индикатор тщательно спланированной архитектуры, где изменения в одном компоненте требуют соответствующих адаптаций в другом.&#34;
+            </p>
+            <p class="text-slate-600 text-sm">
+              — Технический анализ программной архитектуры
+            </p>
+          </div>
+        </section>
+
+        <!-- Conclusion -->
+        <section class="mb-16">
+          <div class="bento-card bg-gradient-to-br from-slate-50 to-blue-50 border-2 border-slate-200">
+            <div class="text-center">
+              <h2 class="serif text-3xl font-bold text-slate-900 mb-6">Заключение</h2>
+              <p class="text-lg text-slate-700 leading-relaxed max-w-4xl mx-auto">
+                Наличие двух синхронизированных репозиториев GitHub представляет собой не просто допустимый, но <strong>архитектурно целесообразный подход</strong> к разработке программных систем. Разделение ответственности между обучающим порталом и AI-компонентом обеспечивает модульность, тестируемость и масштабируемость системы. Синхронное обновление указывает на <strong>скоординированную разработку</strong>, а не на дублирование функциональности.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
 
     <script>
-        function createParticles() {
-            const container = document.getElementById('particles');
-            const particleCount = 50;
-            
-            for (let i = 0; i < particleCount; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.animationDelay = Math.random() * 15 + 's';
-                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
-                container.appendChild(particle);
-            }
-        }
+        // Initialize Mermaid with enhanced theme and contrast
+        mermaid.initialize({ 
+            startOnLoad: true, 
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#f8fafc',
+                primaryTextColor: '#0f172a',
+                primaryBorderColor: '#1e293b',
+                lineColor: '#475569',
+                secondaryColor: '#e2e8f0',
+                tertiaryColor: '#f1f5f9',
+                background: '#ffffff',
+                mainBkg: '#f8fafc',
+                secondBkg: '#e2e8f0',
+                tertiaryBkg: '#f1f5f9',
+                nodeBorder: '#1e293b',
+                clusterBkg: '#f8fafc',
+                clusterBorder: '#475569',
+                defaultLinkColor: '#475569',
+                titleColor: '#0f172a',
+                edgeLabelBackground: '#ffffff',
+                nodeTextColor: '#0f172a',
+                // Enhanced contrast colors for different node types
+                cScale0: '#e3f2fd',
+                cScale1: '#f3e5f5', 
+                cScale2: '#e8f5e8',
+                cScale3: '#fff3e0',
+                cScale4: '#fce4ec',
+                cScale5: '#f5f5f5'
+            },
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 20,
+                nodeSpacing: 50,
+                rankSpacing: 80,
+                diagramPadding: 20
+            },
+            fontSize: 13,
+            fontFamily: 'Inter, sans-serif'
+        });
+        
+        // Initialize Mermaid Controls for zoom and pan
+        function initializeMermaidControls() {
+            const containers = document.querySelectorAll('.mermaid-container');
 
-        createParticles();
+            containers.forEach(container => {
+            const mermaidElement = container.querySelector('.mermaid');
+            let scale = 1;
+            let isDragging = false;
+            let startX, startY, translateX = 0, translateY = 0;
 
-        let messageHistory = [
-            {
-                role: "system",
-                content: "Ты экспертный IT-консультант. Специализируешься на: миграции почты (Exchange, Office 365), настройке Active Directory, переносе файлов в облако, автоматизации бизнес-процессов. Отвечай профессионально, но доступно. Давай конкретные рекомендации и предупреждай о типичных ошибках."
-            }
-        ];
+            // 触摸相关状态
+            let isTouch = false;
+            let touchStartTime = 0;
+            let initialDistance = 0;
+            let initialScale = 1;
+            let isPinching = false;
 
-        let recognition = null;
-        let isRecording = false;
+            // Zoom controls
+            const zoomInBtn = container.querySelector('.zoom-in');
+            const zoomOutBtn = container.querySelector('.zoom-out');
+            const resetBtn = container.querySelector('.reset-zoom');
+            const fullscreenBtn = container.querySelector('.fullscreen');
 
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'ru-RU';
-            recognition.continuous = false;
-            recognition.interimResults = true;
-            
-            recognition.onstart = function() {
-                isRecording = true;
-                document.getElementById('micBtn').classList.add('recording');
-                document.getElementById('userInput').placeholder = 'Слушаю... Говорите!';
-            };
-            
-            recognition.onresult = function(event) {
-                let finalTranscript = '';
-                let interimTranscript = '';
-                
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
-                    } else {
-                        interimTranscript += transcript;
-                    }
-                }
-                
-                document.getElementById('userInput').value = finalTranscript || interimTranscript;
-            };
-            
-            recognition.onend = function() {
-                isRecording = false;
-                document.getElementById('micBtn').classList.remove('recording');
-                document.getElementById('userInput').placeholder = 'Опишите задачу или нажмите микрофон для голоса...';
-                
-                const input = document.getElementById('userInput').value.trim();
-                if (input) {
-                    setTimeout(function() { sendMessage(); }, 500);
-                }
-            };
-            
-            recognition.onerror = function(event) {
-                console.error('Ошибка распознавания:', event.error);
-                isRecording = false;
-                document.getElementById('micBtn').classList.remove('recording');
-                
-                if (event.error === 'not-allowed') {
-                    alert('Разрешите доступ к микрофону в настройках браузера');
-                } else if (event.error === 'no-speech') {
-                    addMessage('Речь не распознана. Попробуйте ещё раз.', 'bot');
-                }
-            };
-        }
+            function updateTransform() {
+                mermaidElement.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
 
-        function toggleVoiceInput() {
-            if (!recognition) {
-                alert('Голосовой ввод не поддерживается. Используйте Chrome, Edge или Safari.');
-                return;
-            }
-            
-            if (isRecording) {
-                recognition.stop();
-            } else {
-                try {
-                    recognition.start();
-                } catch (e) {
-                    console.error(e);
-                }
-            }
-        }
-
-        async function typeText(element, text, speed) {
-            if (!speed) speed = 25;
-            element.innerHTML = '';
-            const cursor = document.createElement('span');
-            cursor.className = 'typing-cursor';
-            
-            let i = 0;
-            while (i < text.length) {
-                if (text[i] === '<') {
-                    const endIndex = text.indexOf('>', i);
-                    if (endIndex === -1) {
-                        element.innerHTML += text[i];
-                        i++;
-                    } else {
-                        element.innerHTML += text.substring(i, endIndex + 1);
-                        i = endIndex + 1;
-                    }
+                if (scale > 1) {
+                container.classList.add('zoomed');
                 } else {
-                    element.innerHTML += text[i];
-                    i++;
+                container.classList.remove('zoomed');
                 }
-                element.appendChild(cursor);
-                
-                const delay = text[i] === '.' ? speed * 3 : text[i] === ',' ? speed * 2 : speed;
-                await new Promise(function(resolve) { setTimeout(resolve, delay); });
+
+                mermaidElement.style.cursor = isDragging ? 'grabbing' : 'grab';
             }
-            cursor.remove();
-        }
 
-        function sendQuick(text) {
-            document.getElementById('userInput').value = text;
-            sendMessage();
-        }
-
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
+            if (zoomInBtn) {
+                zoomInBtn.addEventListener('click', () => {
+                scale = Math.min(scale * 1.25, 4);
+                updateTransform();
+                });
             }
+
+            if (zoomOutBtn) {
+                zoomOutBtn.addEventListener('click', () => {
+                scale = Math.max(scale / 1.25, 0.3);
+                if (scale <= 1) {
+                    translateX = 0;
+                    translateY = 0;
+                }
+                updateTransform();
+                });
+            }
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                scale = 1;
+                translateX = 0;
+                translateY = 0;
+                updateTransform();
+                });
+            }
+
+            if (fullscreenBtn) {
+                fullscreenBtn.addEventListener('click', () => {
+                if (container.requestFullscreen) {
+                    container.requestFullscreen();
+                } else if (container.webkitRequestFullscreen) {
+                    container.webkitRequestFullscreen();
+                } else if (container.msRequestFullscreen) {
+                    container.msRequestFullscreen();
+                }
+                });
+            }
+
+            // Mouse Events
+            mermaidElement.addEventListener('mousedown', (e) => {
+                if (isTouch) return; // 如果是触摸设备，忽略鼠标事件
+
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+                mermaidElement.style.cursor = 'grabbing';
+                updateTransform();
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging && !isTouch) {
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateTransform();
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging && !isTouch) {
+                isDragging = false;
+                mermaidElement.style.cursor = 'grab';
+                updateTransform();
+                }
+            });
+
+            document.addEventListener('mouseleave', () => {
+                if (isDragging && !isTouch) {
+                isDragging = false;
+                mermaidElement.style.cursor = 'grab';
+                updateTransform();
+                }
+            });
+
+            // 获取两点之间的距离
+            function getTouchDistance(touch1, touch2) {
+                return Math.hypot(
+                touch2.clientX - touch1.clientX,
+                touch2.clientY - touch1.clientY
+                );
+            }
+
+            // Touch Events - 触摸事件处理
+            mermaidElement.addEventListener('touchstart', (e) => {
+                isTouch = true;
+                touchStartTime = Date.now();
+
+                if (e.touches.length === 1) {
+                // 单指拖动
+                isPinching = false;
+                isDragging = true;
+
+                const touch = e.touches[0];
+                startX = touch.clientX - translateX;
+                startY = touch.clientY - translateY;
+
+                } else if (e.touches.length === 2) {
+                // 双指缩放
+                isPinching = true;
+                isDragging = false;
+
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                initialDistance = getTouchDistance(touch1, touch2);
+                initialScale = scale;
+                }
+
+                e.preventDefault();
+            }, { passive: false });
+
+            mermaidElement.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1 && isDragging && !isPinching) {
+                // 单指拖动
+                const touch = e.touches[0];
+                translateX = touch.clientX - startX;
+                translateY = touch.clientY - startY;
+                updateTransform();
+
+                } else if (e.touches.length === 2 && isPinching) {
+                // 双指缩放
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = getTouchDistance(touch1, touch2);
+
+                if (initialDistance > 0) {
+                    const newScale = Math.min(Math.max(
+                    initialScale * (currentDistance / initialDistance),
+                    0.3
+                    ), 4);
+                    scale = newScale;
+                    updateTransform();
+                }
+                }
+
+                e.preventDefault();
+            }, { passive: false });
+
+            mermaidElement.addEventListener('touchend', (e) => {
+                // 重置状态
+                if (e.touches.length === 0) {
+                isDragging = false;
+                isPinching = false;
+                initialDistance = 0;
+
+                // 延迟重置isTouch，避免鼠标事件立即触发
+                setTimeout(() => {
+                    isTouch = false;
+                }, 100);
+                } else if (e.touches.length === 1 && isPinching) {
+                // 从双指变为单指，切换为拖动模式
+                isPinching = false;
+                isDragging = true;
+
+                const touch = e.touches[0];
+                startX = touch.clientX - translateX;
+                startY = touch.clientY - translateY;
+                }
+
+                updateTransform();
+            });
+
+            mermaidElement.addEventListener('touchcancel', (e) => {
+                isDragging = false;
+                isPinching = false;
+                initialDistance = 0;
+
+                setTimeout(() => {
+                isTouch = false;
+                }, 100);
+
+                updateTransform();
+            });
+
+            // Enhanced wheel zoom with better center point handling
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const rect = container.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                const newScale = Math.min(Math.max(scale * delta, 0.3), 4);
+
+                // Adjust translation to zoom towards center
+                if (newScale !== scale) {
+                const scaleDiff = newScale / scale;
+                translateX = translateX * scaleDiff;
+                translateY = translateY * scaleDiff;
+                scale = newScale;
+
+                if (scale <= 1) {
+                    translateX = 0;
+                    translateY = 0;
+                }
+
+                updateTransform();
+                }
+            });
+
+            // Initialize display
+            updateTransform();
+            });
         }
 
-        async function sendMessage() {
-            const input = document.getElementById('userInput');
-            const message = input.value.trim();
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Mermaid
+            mermaid.initialize({ 
+                startOnLoad: true, 
+                theme: 'base',
+                themeVariables: {
+                    primaryColor: '#f8fafc',
+                    primaryTextColor: '#0f172a',
+                    primaryBorderColor: '#1e293b',
+                    lineColor: '#475569',
+                    secondaryColor: '#e2e8f0',
+                    tertiaryColor: '#f1f5f9',
+                    background: '#ffffff',
+                    mainBkg: '#f8fafc',
+                    secondBkg: '#e2e8f0',
+                    tertiaryBkg: '#f1f5f9',
+                    nodeBorder: '#1e293b',
+                    clusterBkg: '#f8fafc',
+                    clusterBorder: '#475569',
+                    defaultLinkColor: '#475569',
+                    titleColor: '#0f172a',
+                    edgeLabelBackground: '#ffffff',
+                    nodeTextColor: '#0f172a',
+                    // Enhanced contrast colors for different node types
+                    cScale0: '#e3f2fd',
+                    cScale1: '#f3e5f5', 
+                    cScale2: '#e8f5e8',
+                    cScale3: '#fff3e0',
+                    cScale4: '#fce4ec',
+                    cScale5: '#f5f5f5'
+                },
+                flowchart: {
+                    useMaxWidth: false,
+                    htmlLabels: true,
+                    curve: 'basis',
+                    padding: 20,
+                    nodeSpacing: 50,
+                    rankSpacing: 80,
+                    diagramPadding: 20
+                },
+                fontSize: 13,
+                fontFamily: 'Inter, sans-serif'
+            });
             
-            if (!message) return;
-            
-            addMessage(message, 'user');
-            input.value = '';
-            
-            document.getElementById('loading').classList.add('active');
-            
-            try {
-                await new Promise(function(resolve) { setTimeout(resolve, 1500); });
-                
-                const responses = {
-                    'миграция': 'Миграция почты в Exchange Online: 1. Подготовка: проверьте текущую версию Exchange, лицензии Office 365. 2. Hybrid Configuration: настройте гибридное развертывание. 3. Пилот: перенесите тестовую группу (10-20 ящиков). 4. Массовая миграция: используйте пакетную миграцию или staged. 5. DNS: обновите MX-записи после завершения. Важно: заранее уведомите пользователей и сделайте бэкап PST! Хотите полный аудит? Нажмите кнопку ниже после 3 сообщений.',
-                    
-                    'ad': 'Настройка Active Directory: Структура OU — создайте логическую иерархию (по отделам/локациям). Групповые политики — разделите User и Computer policies. Безопасность — включите MFA для админов, настройте PAM. Мониторинг — настройте аудит изменений в AD. Backup — регулярный бэкап System State обязателен. Совет: рассмотрите переход на Azure AD для гибридных сценариев.',
-                    
-                    'файл': 'Перенос файлов в облако: Вариант 1 — OneDrive/SharePoint: используйте SharePoint Migration Tool (SPMT), сохраняйте права доступа. Вариант 2 — Яндекс.Диск для бизнеса: API-интеграция для автоматизации, шифрование на стороне клиента. Оценка объёма: проведите аудит — часто 80% файлов не использовались годами.',
-                    
-                    'стоимость': 'Стоимость услуг зависит от: количества пользователей/ящиков, сложности текущей инфраструктуры, сроков (срочные проекты +30%), необходимости работ в нерабочее время. Примерные цены: миграция почты (100 ящиков) — от 150 000 ₽, настройка AD с нуля — от 80 000 ₽, аудит инфраструктуры — от 40 000 ₽. Хотите точную оценку? Опишите вашу ситуацию подробнее или запросите PDF-аудит!',
-                    
-                    'привет': 'Привет! Я готов помочь с: миграцией почты и данных, настройкой Active Directory, переносом в облако, автоматизацией процессов. Говорите или пишите — я всё пойму!',
-                    
-                    'помощь': 'Как я могу помочь: Голосовой ввод — нажмите микрофон и говорите. Быстрые вопросы — кнопки выше. PDF-аудит — после 3 сообщений появится кнопка. Опишите вашу задачу — я подготовлю решение!'
-                };
-                
-                let answer = 'Анализирую ваш запрос... Для профессиональной консультации мне нужно подключиться к базе знаний. Сейчас я работаю в демо-режиме. Уточните тему: миграция почты, настройка AD, перенос файлов или стоимость?';
-                
-                const lowerMsg = message.toLowerCase();
-                for (const key in responses) {
-                    if (lowerMsg.indexOf(key) !== -1) {
-                        answer = responses[key];
-                        break;
+            // Initialize Mermaid Controls
+            initializeMermaidControls();
+
+            // Smooth scrolling for TOC links
+            document.querySelectorAll('.toc-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    const targetElement = document.getElementById(targetId);
+                    if (targetElement) {
+                        targetElement.scrollIntoView({ 
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
                     }
-                }
-                
-                const botMessage = addMessage('', 'bot');
-                await typeText(botMessage, answer);
-                
-                messageHistory.push({ role: 'user', content: message });
-                messageHistory.push({ role: 'assistant', content: answer });
-                
-                if (messageHistory.length > 6) {
-                    document.getElementById('reportSection').classList.add('visible');
-                }
-                
-            } catch (error) {
-                addMessage('Ошибка соединения. Проверьте подключение к интернету.', 'bot');
-                console.error(error);
-            } finally {
-                document.getElementById('loading').classList.remove('active');
-            }
-        }
+                });
+            });
 
-        function addMessage(text, sender) {
-            const container = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message ' + sender;
-            messageDiv.innerHTML = text;
-            container.appendChild(messageDiv);
-            container.scrollTop = container.scrollHeight;
-            return messageDiv;
-        }
-
-        async function generateReport() {
-            const btn = document.getElementById('reportBtn');
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = '<span>⏳</span><span>Генерация...</span>';
-            btn.disabled = true;
-            
-            try {
-                const API_URL = 'https://functions.yandexcloud.net/ТВОЙ_ID/generate-report';
-                let useDemo = true;
+            // Highlight active section in TOC
+            window.addEventListener('scroll', function() {
+                const sections = document.querySelectorAll('section[id], div[id]');
+                const tocLinks = document.querySelectorAll('.toc-link');
                 
-                try {
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            history: messageHistory,
-                            topic: 'IT-аудит инфраструктуры'
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        downloadPDF(data.pdf_base64, data.filename);
-                        useDemo = false;
+                let currentSection = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    const sectionHeight = section.offsetHeight;
+                    if (window.scrollY >= sectionTop - 200) {
+                        currentSection = section.getAttribute('id');
                     }
-                } catch (e) {
-                    console.log('API недоступен, демо-режим');
-                }
-                
-                if (useDemo) {
-                    generateDemoReport();
-                }
-                
-                addMessage('Отчёт готов! PDF скачан. В полной версии — детальный анализ с рекомендациями.', 'bot');
-                
-            } catch (error) {
-                console.error(error);
-                addMessage('Ошибка генерации отчёта. Попробуйте позже.', 'bot');
-            } finally {
-                btn.innerHTML = originalContent;
-                btn.disabled = false;
-            }
-        }
+                });
 
-        function downloadPDF(base64Data, filename) {
-            const pdfBytes = atob(base64Data);
-            const array = new Uint8Array(pdfBytes.length);
-            for (let i = 0; i < pdfBytes.length; i++) {
-                array[i] = pdfBytes.charCodeAt(i);
-            }
-            
-            const blob = new Blob([array], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename || 'IT-Audit-Report.pdf';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function generateDemoReport() {
-            const content = 'IT-АУДИТ ИНФРАСТРУКТУРЫ\n\n';
-            const date = new Date().toLocaleString('ru-RU');
-            
-            let dialogHistory = '';
-            for (let i = 0; i < messageHistory.length; i++) {
-                const m = messageHistory[i];
-                if (m.role !== 'system') {
-                    const role = m.role === 'user' ? 'Клиент' : 'AI';
-                    const text = m.content.substring(0, 80);
-                    dialogHistory += (i + '. [' + role + ']: ' + text + '...\n');
-                }
-            }
-            
-            const fullContent = content +
-                'Дата: ' + date + '\n' +
-                'Источник: AI-консультант ATOM IT\n\n' +
-                'ИСТОРИЯ ОБРАЩЕНИЯ:\n' + dialogHistory + '\n\n' +
-                'ВЫЯВЛЕННЫЕ ПОТРЕБНОСТИ:\n' +
-                '- Миграция инфраструктуры\n' +
-                '- Оптимизация процессов\n' +
-                '- Консультация по безопасности\n\n' +
-                'РЕКОМЕНДУЕМЫЕ ШАГИ:\n' +
-                '1. Детальный аудит текущей системы\n' +
-                '2. Разработка плана миграции\n' +
-                '3. Пилотный проект (тестовая группа)\n' +
-                '4. Полномасштабное внедрение\n\n' +
-                'КОНТАКТЫ:\n' +
-                'trainingsw75-cloud.github.io/ai-widget/\n\n' +
-                'Документ сгенерирован автоматически';
-            
-            const blob = new Blob([fullContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'IT-Audit-' + Date.now() + '.txt';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        window.onload = async function() {
-            const welcome = document.getElementById('welcomeMessage');
-            const originalText = welcome.innerHTML;
-            welcome.innerHTML = '';
-            await typeText(welcome, originalText, 20);
-        };
+                tocLinks.forEach(link => {
+                    link.classList.remove('text-white', 'font-semibold');
+                    link.classList.add('text-slate-300');
+                    if (link.getAttribute('href') === '#' + currentSection) {
+                        link.classList.remove('text-slate-300');
+                        link.classList.add('text-white', 'font-semibold');
+                    }
+                });
+            });
+        });
     </script>
-</body>
-</html>
+  
+
+</body></html>
