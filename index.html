@@ -497,13 +497,9 @@
 
         <div class="chat-messages" id="chatMessages">
             <div class="message bot" id="welcomeMessage">
-                Привет! 👋 Я ваш персональный AI-ассистент по IT-инфраструктуре.<br><br>
-                🎯 <b>Моя специализация:</b><br>
-                • Миграция почты (Exchange → Exchange Online, Google Workspace)<br>
-                • Настройка Active Directory и Azure AD<br>
-                • Перенос файлов в облако (OneDrive, SharePoint, Яндекс.Диск)<br>
-                • Автоматизация бизнес-процессов<br><br>
-                🎤 <b>Новое:</b> Говорите — я слушаю! Нажмите на микрофон.<br><br>
+                Привет! Я ваш персональный AI-ассистент по IT-инфраструктуре.
+                Моя специализация: миграция почты (Exchange в Exchange Online, Google Workspace), настройка Active Directory и Azure AD, перенос файлов в облако (OneDrive, SharePoint, Яндекс.Диск), автоматизация бизнес-процессов.
+                Новое: говорите — я слушаю! Нажмите на микрофон.
                 Выберите быстрый вопрос или напишите свой!
             </div>
         </div>
@@ -531,7 +527,7 @@
         <div class="chat-input-area">
             <div class="input-wrapper">
                 <input type="text" class="chat-input" id="userInput" 
-                       placeholder="Опишите задачу или нажмите 🎤 для голоса..." 
+                       placeholder="Опишите задачу или нажмите микрофон для голоса..." 
                        onkeypress="handleKeyPress(event)">
             </div>
             <button class="mic-btn" id="micBtn" onclick="toggleVoiceInput()" title="Голосовой ввод">
@@ -546,7 +542,6 @@
     </div>
 
     <script>
-        // Создаём частицы на фоне
         function createParticles() {
             const container = document.getElementById('particles');
             const particleCount = 50;
@@ -563,7 +558,6 @@
 
         createParticles();
 
-        // История сообщений
         let messageHistory = [
             {
                 role: "system",
@@ -571,7 +565,6 @@
             }
         ];
 
-        // Голосовой ввод
         let recognition = null;
         let isRecording = false;
 
@@ -582,13 +575,13 @@
             recognition.continuous = false;
             recognition.interimResults = true;
             
-            recognition.onstart = () => {
+            recognition.onstart = function() {
                 isRecording = true;
                 document.getElementById('micBtn').classList.add('recording');
                 document.getElementById('userInput').placeholder = 'Слушаю... Говорите!';
             };
             
-            recognition.onresult = (event) => {
+            recognition.onresult = function(event) {
                 let finalTranscript = '';
                 let interimTranscript = '';
                 
@@ -604,33 +597,33 @@
                 document.getElementById('userInput').value = finalTranscript || interimTranscript;
             };
             
-            recognition.onend = () => {
+            recognition.onend = function() {
                 isRecording = false;
                 document.getElementById('micBtn').classList.remove('recording');
-                document.getElementById('userInput').placeholder = 'Опишите задачу или нажмите 🎤 для голоса...';
+                document.getElementById('userInput').placeholder = 'Опишите задачу или нажмите микрофон для голоса...';
                 
                 const input = document.getElementById('userInput').value.trim();
                 if (input) {
-                    setTimeout(() => sendMessage(), 500);
+                    setTimeout(function() { sendMessage(); }, 500);
                 }
             };
             
-            recognition.onerror = (event) => {
+            recognition.onerror = function(event) {
                 console.error('Ошибка распознавания:', event.error);
                 isRecording = false;
                 document.getElementById('micBtn').classList.remove('recording');
                 
                 if (event.error === 'not-allowed') {
-                    alert('🔒 Разрешите доступ к микрофону в настройках браузера');
+                    alert('Разрешите доступ к микрофону в настройках браузера');
                 } else if (event.error === 'no-speech') {
-                    addMessage('🎤 Речь не распознана. Попробуйте ещё раз.', 'bot');
+                    addMessage('Речь не распознана. Попробуйте ещё раз.', 'bot');
                 }
             };
         }
 
         function toggleVoiceInput() {
             if (!recognition) {
-                alert('⚠️ Голосовой ввод не поддерживается. Используйте Chrome, Edge или Safari.');
+                alert('Голосовой ввод не поддерживается. Используйте Chrome, Edge или Safari.');
                 return;
             }
             
@@ -645,8 +638,8 @@
             }
         }
 
-        // Эффект печатающегося текста
-        async function typeText(element, text, speed = 25) {
+        async function typeText(element, text, speed) {
+            if (!speed) speed = 25;
             element.innerHTML = '';
             const cursor = document.createElement('span');
             cursor.className = 'typing-cursor';
@@ -668,10 +661,8 @@
                 }
                 element.appendChild(cursor);
                 
-                // Адаптивная скорость
-                const delay = text[i] === '.' ? speed * 3 : 
-                             text[i] === ',' ? speed * 2 : speed;
-                await new Promise(resolve => setTimeout(resolve, delay));
+                const delay = text[i] === '.' ? speed * 3 : text[i] === ',' ? speed * 2 : speed;
+                await new Promise(function(resolve) { setTimeout(resolve, delay); });
             }
             cursor.remove();
         }
@@ -693,58 +684,50 @@
             
             if (!message) return;
             
-            // Добавляем сообщение пользователя
             addMessage(message, 'user');
             input.value = '';
             
-            // Показываем индикатор загрузки
             document.getElementById('loading').classList.add('active');
             
             try {
-                // Здесь интеграция с твоим API Yandex Cloud
-                // Пока демо-режим с умными ответами
-                
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(function(resolve) { setTimeout(resolve, 1500); });
                 
                 const responses = {
-                    'миграция': '🔧 <b>Миграция почты в Exchange Online:</b><br><br>1. <b>Подготовка:</b> Проверьте текущую версию Exchange, лицензии Office 365<br>2. <b>Hybrid Configuration:</b> Настройте гибридное развертывание<br>3. <b>Пилот:</b> Перенесите тестовую группу (10-20 ящиков)<br>4. <b>Массовая миграция:</b> Используйте пакетную миграцию или staged<br>5. <b>DNS:</b> Обновите MX-записи после завершения<br><br>⚠️ <b>Важно:</b> Заранее уведомите пользователей и сделайте бэкап PST!<br><br>📋 <b>Хотите полный аудит?</b> Нажмите кнопку ниже после 3 сообщений.',
+                    'миграция': 'Миграция почты в Exchange Online: 1. Подготовка: проверьте текущую версию Exchange, лицензии Office 365. 2. Hybrid Configuration: настройте гибридное развертывание. 3. Пилот: перенесите тестовую группу (10-20 ящиков). 4. Массовая миграция: используйте пакетную миграцию или staged. 5. DNS: обновите MX-записи после завершения. Важно: заранее уведомите пользователей и сделайте бэкап PST! Хотите полный аудит? Нажмите кнопку ниже после 3 сообщений.',
                     
-                    'ad': '🏢 <b>Настройка Active Directory:</b><br><br>• <b>Структура OU:</b> Создайте логическую иерархию (по отделам/локациям)<br>• <b>Групповые политики:</b> Разделите User и Computer policies<br>• <b>Безопасность:</b> Включите MFA для админов, настройте PAM<br>• <b>Мониторинг:</b> Настройте аудит изменений в AD<br>• <b>Backup:</b> Регулярный бэкап System State обязателен<br><br>💡 <b>Совет:</b> Рассмотрите переход на Azure AD для гибридных сценариев.',
+                    'ad': 'Настройка Active Directory: Структура OU — создайте логическую иерархию (по отделам/локациям). Групповые политики — разделите User и Computer policies. Безопасность — включите MFA для админов, настройте PAM. Мониторинг — настройте аудит изменений в AD. Backup — регулярный бэкап System State обязателен. Совет: рассмотрите переход на Azure AD для гибридных сценариев.',
                     
-                    'файл': '☁️ <b>Перенос файлов в облако:</b><br><br><b>Вариант 1 — OneDrive/SharePoint:</b><br>• Используйте SharePoint Migration Tool (SPMT)<br>• Сохраняйте права доступа и версионирование<br><br><b>Вариант 2 — Яндекс.Диск для бизнеса:</b><br>• API-интеграция для автоматизации<br>• Шифрование на стороне клиента<br><br>📊 <b>Оценка объёма:</b> Проведите аудит — часто 80% файлов не использовались годами.',
+                    'файл': 'Перенос файлов в облако: Вариант 1 — OneDrive/SharePoint: используйте SharePoint Migration Tool (SPMT), сохраняйте права доступа. Вариант 2 — Яндекс.Диск для бизнеса: API-интеграция для автоматизации, шифрование на стороне клиента. Оценка объёма: проведите аудит — часто 80% файлов не использовались годами.',
                     
-                    'стоимость': '💰 <b>Стоимость услуг зависит от:</b><br><br>• Количества пользователей/ящиков<br>• Сложности текущей инфраструктуры<br>• Сроков (срочные проекты +30%)<br>• Необходимости работ в нерабочее время<br><br><b>Примерные цены:</b><br>• Миграция почты (100 ящиков): от 150 000 ₽<br>• Настройка AD с нуля: от 80 000 ₽<br>• Аудит инфраструктуры: от 40 000 ₽<br><br>🎯 <b>Хотите точную оценку?</b> Опишите вашу ситуацию подробнее или запросите PDF-аудит!',
+                    'стоимость': 'Стоимость услуг зависит от: количества пользователей/ящиков, сложности текущей инфраструктуры, сроков (срочные проекты +30%), необходимости работ в нерабочее время. Примерные цены: миграция почты (100 ящиков) — от 150 000 ₽, настройка AD с нуля — от 80 000 ₽, аудит инфраструктуры — от 40 000 ₽. Хотите точную оценку? Опишите вашу ситуацию подробнее или запросите PDF-аудит!',
                     
-                    'привет': '👋 Привет! Я готов помочь с:<br>• Миграцией почты и данных<br>• Настройкой Active Directory<br>• Переносом в облако<br>• Автоматизацией процессов<br><br>🎤 <b>Говорите или пишите</b> — я всё пойму!',
+                    'привет': 'Привет! Я готов помочь с: миграцией почты и данных, настройкой Active Directory, переносом в облако, автоматизацией процессов. Говорите или пишите — я всё пойму!',
                     
-                    'помощь': '🆘 <b>Как я могу помочь:</b><br><br>🎤 <b>Голосовой ввод:</b> Нажмите 🎤 и говорите<br>💬 <b>Быстрые вопросы:</b> Кнопки выше<br>📋 <b>PDF-аудит:</b> После 3 сообщений появится кнопка<br><br>Опишите вашу задачу — я подготовлю решение!'
+                    'помощь': 'Как я могу помочь: Голосовой ввод — нажмите микрофон и говорите. Быстрые вопросы — кнопки выше. PDF-аудит — после 3 сообщений появится кнопка. Опишите вашу задачу — я подготовлю решение!'
                 };
                 
-                let answer = '🔍 Анализирую ваш запрос...<br><br>Для профессиональной консультации мне нужно подключиться к базе знаний. Сейчас я работаю в демо-режиме.<br><br>🎯 <b>Уточните тему:</b> миграция почты, настройка AD, перенос файлов или стоимость?';
+                let answer = 'Анализирую ваш запрос... Для профессиональной консультации мне нужно подключиться к базе знаний. Сейчас я работаю в демо-режиме. Уточните тему: миграция почты, настройка AD, перенос файлов или стоимость?';
                 
                 const lowerMsg = message.toLowerCase();
-                for (const [key, response] of Object.entries(responses)) {
-                    if (lowerMsg.includes(key)) {
-                        answer = response;
+                for (const key in responses) {
+                    if (lowerMsg.indexOf(key) !== -1) {
+                        answer = responses[key];
                         break;
                     }
                 }
                 
-                // Добавляем ответ бота с эффектом печати
                 const botMessage = addMessage('', 'bot');
                 await typeText(botMessage, answer);
                 
-                // Обновляем историю
                 messageHistory.push({ role: 'user', content: message });
                 messageHistory.push({ role: 'assistant', content: answer });
                 
-                // Показываем кнопку отчёта после 3+ сообщений
                 if (messageHistory.length > 6) {
                     document.getElementById('reportSection').classList.add('visible');
                 }
                 
             } catch (error) {
-                addMessage('❌ Ошибка соединения. Проверьте подключение к интернету.', 'bot');
+                addMessage('Ошибка соединения. Проверьте подключение к интернету.', 'bot');
                 console.error(error);
             } finally {
                 document.getElementById('loading').classList.remove('active');
@@ -754,14 +737,13 @@
         function addMessage(text, sender) {
             const container = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
+            messageDiv.className = 'message ' + sender;
             messageDiv.innerHTML = text;
             container.appendChild(messageDiv);
             container.scrollTop = container.scrollHeight;
             return messageDiv;
         }
 
-        // Генерация PDF-отчёта
         async function generateReport() {
             const btn = document.getElementById('reportBtn');
             const originalContent = btn.innerHTML;
@@ -769,10 +751,7 @@
             btn.disabled = true;
             
             try {
-                // Проверяем, есть ли API
                 const API_URL = 'https://functions.yandexcloud.net/ТВОЙ_ID/generate-report';
-                
-                // Пробуем реальный API, если не работает — демо
                 let useDemo = true;
                 
                 try {
@@ -791,19 +770,18 @@
                         useDemo = false;
                     }
                 } catch (e) {
-                    console.log('API недоступен, используем демо');
+                    console.log('API недоступен, демо-режим');
                 }
                 
                 if (useDemo) {
-                    // Демо-генерация PDF через браузер
-                    await generateDemoPDF();
+                    generateDemoReport();
                 }
                 
-                addMessage('📄 <b>Отчёт сгенерирован!</b><br><br>PDF-файл скачан. В реальном режиме он будет содержать детальный анализ вашей ситуации с рекомендациями.', 'bot');
+                addMessage('Отчёт готов! PDF скачан. В полной версии — детальный анализ с рекомендациями.', 'bot');
                 
             } catch (error) {
                 console.error(error);
-                addMessage('❌ Ошибка генерации отчёта. Попробуйте позже.', 'bot');
+                addMessage('Ошибка генерации отчёта. Попробуйте позже.', 'bot');
             } finally {
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
@@ -829,51 +807,49 @@
             URL.revokeObjectURL(url);
         }
 
-        // Демо-генерация PDF (когда API не подключен)
-        async function generateDemoPDF() {
-            // Создаём простой текстовый PDF через data URI
-            const reportContent = `
-IT-АУДИТ ИНФРАСТРУКТУРЫ
-═══════════════════════════════════
-
-Дата: ${new Date().toLocaleDateString('ru-RU')}
-Клиент: Обращение через AI-виджет
-
-РЕЗЮМЕ ДИАЛОГА:
-${messageHistory.filter(m => m.role !== 'system').map(m => 
-    `${m.role === 'user' ? 'Клиент' : 'Консультант'}: ${m.content.substring(0, 100)}...`
-).join('\n\n')}
-
-РЕКОМЕНДАЦИИ:
-• Провести детальный аудит текущей инфраструктуры
-• Разработать план миграции с минимальными рисками
-• Настроить резервное копирование критичных данных
-
-СЛЕДУЮЩИЕ ШАГИ:
-1. Заказать полный IT-аудит
-2. Получить коммерческое предложение
-3. Запланировать пилотный проект
-
-═══════════════════════════════════
-Сгенерировано: AI IT-Консультант
-Контакты: https://trainingsw75-cloud.github.io/ai-widget/
-            `.trim();
+        function generateDemoReport() {
+            const content = 'IT-АУДИТ ИНФРАСТРУКТУРЫ\n\n';
+            const date = new Date().toLocaleString('ru-RU');
             
-            // Создаём простой PDF через jsPDF или data URI
-            // Для демо используем текстовый файл с расширением .pdf
-            const blob = new Blob([reportContent], { type: 'application/pdf' });
+            let dialogHistory = '';
+            for (let i = 0; i < messageHistory.length; i++) {
+                const m = messageHistory[i];
+                if (m.role !== 'system') {
+                    const role = m.role === 'user' ? 'Клиент' : 'AI';
+                    const text = m.content.substring(0, 80);
+                    dialogHistory += (i + '. [' + role + ']: ' + text + '...\n');
+                }
+            }
+            
+            const fullContent = content +
+                'Дата: ' + date + '\n' +
+                'Источник: AI-консультант ATOM IT\n\n' +
+                'ИСТОРИЯ ОБРАЩЕНИЯ:\n' + dialogHistory + '\n\n' +
+                'ВЫЯВЛЕННЫЕ ПОТРЕБНОСТИ:\n' +
+                '- Миграция инфраструктуры\n' +
+                '- Оптимизация процессов\n' +
+                '- Консультация по безопасности\n\n' +
+                'РЕКОМЕНДУЕМЫЕ ШАГИ:\n' +
+                '1. Детальный аудит текущей системы\n' +
+                '2. Разработка плана миграции\n' +
+                '3. Пилотный проект (тестовая группа)\n' +
+                '4. Полномасштабное внедрение\n\n' +
+                'КОНТАКТЫ:\n' +
+                'trainingsw75-cloud.github.io/ai-widget/\n\n' +
+                'Документ сгенерирован автоматически';
+            
+            const blob = new Blob([fullContent], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             
             const a = document.createElement('a');
             a.href = url;
-            a.download = `IT-Audit-${Date.now()}.pdf`;
+            a.download = 'IT-Audit-' + Date.now() + '.txt';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
 
-        // Приветственная анимация
         window.onload = async function() {
             const welcome = document.getElementById('welcomeMessage');
             const originalText = welcome.innerHTML;
