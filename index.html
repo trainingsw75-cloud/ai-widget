@@ -1,1184 +1,200 @@
-<!DOCTYPE html><html lang="ru"><head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Анализ программной архитектуры: Два репозитория и семантика агента</title>
-    <script src="https://cdn.tailwindcss.com/3.4.0"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
-    <style>
-        :root {
-            --primary: #1e293b;
-            --secondary: #475569;
-            --accent: #0f172a;
-            --surface: #f8fafc;
-            --text: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            line-height: 1.7;
-            color: var(--text);
-        }
-        
-        .serif {
-            font-family: 'Playfair Display', serif;
-        }
-        
-        .toc-fixed {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 280px;
-            height: 100vh;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-            color: white;
-            overflow-y: auto;
-            z-index: 50;
-            padding: 2rem 1.5rem;
-            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
-        }
-        
-        .main-content {
-            margin-left: 280px;
-            min-height: 100vh;
-        }
-        
-        .hero-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 2rem;
-            align-items: center;
-        }
-        
-        .bento-card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            border: 1px solid var(--border);
-        }
-        
-        .section-divider {
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--border), transparent);
-            margin: 4rem 0;
-        }
-        
-        .citation {
-            color: var(--primary);
-            text-decoration: none;
-            border-bottom: 1px dotted var(--primary);
-            transition: all 0.2s ease;
-        }
-        
-        .citation:hover {
-            background: rgba(30, 41, 59, 0.05);
-            padding: 2px 4px;
-            border-radius: 4px;
-        }
-        
-        .quote-block {
-            border-left: 4px solid var(--primary);
-            background: var(--surface);
-            padding: 2rem;
-            margin: 2rem 0;
-            border-radius: 0 8px 8px 0;
-            font-style: italic;
-        }
-        
-        /* Mermaid diagram styling */
-        .mermaid-container {
-            display: flex;
-            justify-content: center;
-            min-height: 300px;
-            max-height: 800px;
-            background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 30px;
-            margin: 30px 0;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .mermaid-container .mermaid {
-            width: 100%;
-            max-width: 100%;
-            height: 100%;
-            cursor: grab;
-            transition: transform 0.3s ease;
-            transform-origin: center center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            touch-action: none; /* 防止触摸设备上的默认行为 */
-            -webkit-user-select: none; /* 防止文本选择 */
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
-
-        .mermaid-container .mermaid svg {
-            max-width: 100%;
-            height: 100%;
-            display: block;
-            margin: 0 auto;
-        }
-
-        .mermaid-container .mermaid:active {
-            cursor: grabbing;
-        }
-
-        .mermaid-container.zoomed .mermaid {
-            height: 100%;
-            width: 100%;
-            cursor: grab;
-        }
-
-        .mermaid-controls {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            display: flex;
-            gap: 10px;
-            z-index: 20;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 8px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .mermaid-control-btn {
-            background: #ffffff;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            padding: 10px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: #374151;
-            font-size: 14px;
-            min-width: 36px;
-            height: 36px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .mermaid-control-btn:hover {
-            background: #f8fafc;
-            border-color: #3b82f6;
-            color: #3b82f6;
-            transform: translateY(-1px);
-        }
-
-        .mermaid-control-btn:active {
-            transform: scale(0.95);
-        }
-        
-        /* Enhanced contrast for mermaid elements */
-        .mermaid .node rect,
-        .mermaid .node circle,
-        .mermaid .node ellipse,
-        .mermaid .node polygon {
-            stroke-width: 2.5px !important;
-            stroke: var(--accent) !important;
-        }
-        
-        .mermaid .node .label {
-            color: var(--text) !important;
-            font-weight: 600 !important;
-            font-size: 13px !important;
-            font-family: 'Inter', sans-serif !important;
-        }
-        
-        .mermaid .edgePath .path {
-            stroke: var(--secondary) !important;
-            stroke-width: 2.5px !important;
-        }
-        
-        .mermaid .edgeLabel {
-            background-color: white !important;
-            color: var(--text) !important;
-            font-weight: 600 !important;
-            padding: 4px 8px !important;
-            border-radius: 4px !important;
-            border: 1px solid var(--border) !important;
-            font-family: 'Inter', sans-serif !important;
-        }
-        
-        /* Specific node color contrasts */
-        .mermaid .node[id*="A"] rect,
-        .mermaid .node[id*="A"] polygon,
-        .mermaid .node[id*="A"] circle {
-            fill: #e3f2fd !important;
-            stroke: #1976d2 !important;
-            stroke-width: 3px !important;
-        }
-        
-        .mermaid .node[id*="B"] rect,
-        .mermaid .node[id*="B"] polygon,
-        .mermaid .node[id*="B"] circle {
-            fill: #f3e5f5 !important;
-            stroke: #7b1fa2 !important;
-            stroke-width: 3px !important;
-        }
-        
-        .mermaid .node[id*="C"] rect,
-        .mermaid .node[id*="C"] polygon,
-        .mermaid .node[id*="C"] circle {
-            fill: #e8f5e8 !important;
-            stroke: #388e3c !important;
-            stroke-width: 3px !important;
-        }
-        
-        .mermaid .node[id*="D"] rect,
-        .mermaid .node[id*="D"] polygon,
-        .mermaid .node[id*="D"] circle {
-            fill: #fff3e0 !important;
-            stroke: #f57c00 !important;
-            stroke-width: 3px !important;
-        }
-        
-        .mermaid .node[id*="E"] rect,
-        .mermaid .node[id*="E"] polygon,
-        .mermaid .node[id*="E"] circle {
-            fill: #fce4ec !important;
-            stroke: #c2185b !important;
-            stroke-width: 3px !important;
-        }
-        
-        .mermaid .node[id*="F"] rect,
-        .mermaid .node[id*="F"] polygon,
-        .mermaid .node[id*="F"] circle {
-            fill: #f5f5f5 !important;
-            stroke: #424242 !important;
-            stroke-width: 3px !important;
-        }
-        
-        /* Ensure all text in mermaid is readable */
-        .mermaid text {
-            fill: var(--text) !important;
-            font-weight: 600 !important;
-            font-size: 13px !important;
-            font-family: 'Inter', sans-serif !important;
-        }
-        
-        /* Responsive adjustments for mermaid controls */
-        @media (max-width: 1024px) {
-            .mermaid-control-btn:not(.reset-zoom) {
-                display: none;
-            }
-            .mermaid-controls {
-                top: auto;
-                bottom: 15px;
-                right: 15px;
-            }
-        }
-        
-        .toc-link {
-            display: block;
-            padding: 0.75rem 0;
-            color: rgba(255,255,255,0.8);
-            text-decoration: none;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.2s ease;
-        }
-        
-        .toc-link:hover {
-            color: white;
-            padding-left: 0.5rem;
-        }
-        
-        .toc-link.level-2 {
-            padding-left: 1rem;
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-        
-        .toc-link.level-3 {
-            padding-left: 2rem;
-            font-size: 0.85em;
-            opacity: 0.8;
-        }
-        
-        @media (max-width: 1024px) {
-            .toc-fixed {
-                display: none;
-            }
-            .main-content {
-                margin-left: 0;
-            }
-            .hero-grid {
-                grid-template-columns: 1fr;
-            }
-            .mermaid-container {
-                overflow-x: auto;
-            }
-            .mermaid-container .mermaid {
-                min-width: 600px;
-            }
-        }
-    </style>
-  <base target="_blank">
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WARHOOK AI ORACLE — предсказание в искусстве</title>
+<meta name="theme-color" content="#0e1a2b">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--gold:#E4B24C;--navy:#0e1a2b;--bg:#0a0e17;--cream:#F6ECD6;--mut:#8fa0bd}
+  body{min-height:100vh;background:var(--bg);color:var(--cream);font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding:22px 16px 50px}
+  .head{text-align:center;max-width:640px;margin:0 auto 18px}
+  h1{font-family:Georgia,serif;font-weight:normal;color:var(--gold);letter-spacing:2px;font-size:28px}
+  .sub{color:var(--mut);font-size:14px;margin-top:6px}
+  .moods{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;max-width:520px;margin:0 auto}
+  @media(max-width:460px){.moods{grid-template-columns:repeat(2,1fr)}}
+  .mood{background:var(--navy);border:1px solid rgba(228,178,76,.3);border-radius:14px;padding:14px 6px;color:var(--cream);font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
+  .mood:hover,.mood.on{border-color:var(--gold);background:rgba(228,178,76,.12)}
+  .mood .e{display:block;font-size:24px;margin-bottom:4px}
+  .result{max-width:640px;margin:20px auto 0;display:none}
+  .result.on{display:block;animation:f .3s ease}
+  @keyframes f{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  #cv{width:100%;aspect-ratio:16/10;background:var(--bg);border-radius:16px;border:1px solid rgba(228,178,76,.3);display:block}
+  .concept{font-family:Georgia,serif;font-size:19px;line-height:1.5;color:var(--cream);text-align:center;margin:16px 6px;font-style:italic}
+  .concept::before{content:'«';color:var(--gold)}.concept::after{content:'»';color:var(--gold)}
+  .artist{background:var(--navy);border:1px solid rgba(228,178,76,.28);border-radius:14px;padding:16px}
+  .artist .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .artist .nm{font-size:20px;color:var(--gold)}
+  .artist .pr{font-family:monospace;color:#38E08A;font-size:15px}
+  .artist .meta{color:var(--mut);font-size:13px;margin:4px 0 10px}
+  .artist .bio{font-size:14px;line-height:1.6;color:#c7cede}
+  .acts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+  .acts button{font-family:inherit;font-size:13px;padding:11px 4px;border:none;border-radius:11px;cursor:pointer;background:transparent;color:var(--gold);border:1px solid var(--gold)}
+  .acts button.pri{background:var(--gold);color:#0a0e17;font-weight:600;border:none}
+  .foot{text-align:center;color:#5f6b83;font-size:12px;margin-top:26px}
+  .foot a{color:var(--gold);text-decoration:none}
+</style>
 </head>
-
-  <body class="bg-slate-50">
-    <!-- Fixed Table of Contents -->
-    <nav class="toc-fixed">
-      <h3 class="text-lg font-bold mb-6 text-white">Содержание</h3>
-      <div class="space-y-1">
-        <a href="#executive-summary" class="toc-link">Краткий ответ</a>
-        <a href="#analysis" class="toc-link">Анализ запроса</a>
-        <a href="#repositories" class="toc-link level-2">Репозитории GitHub</a>
-        <a href="#emotional-tone" class="toc-link level-2">Эмоциональная окраска</a>
-        <a href="#linguistic-context" class="toc-link">Лингвистический контекст</a>
-        <a href="#dialect-research" class="toc-link level-2">Исследование диалектов</a>
-        <a href="#semantic-findings" class="toc-link level-2">Семантические находки</a>
-        <a href="#technical-analysis" class="toc-link">Технический анализ</a>
-        <a href="#architecture" class="toc-link level-2">Архитектура системы</a>
-        <a href="#synchronization" class="toc-link level-2">Синхронизация</a>
-        <a href="#recommendations" class="toc-link">Рекомендации</a>
-      </div>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="main-content">
-      <!-- Hero Section -->
-      <section class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-r from-slate-900/5 to-transparent"></div>
-        <div class="relative container mx-auto px-4 sm:px-6 md:px-8 py-16">
-          <div class="hero-grid max-w-7xl mx-auto">
-            <!-- Left Column: Title and Summary -->
-            <div class="space-y-8">
-              <div class="space-y-6">
-                <h1 class="serif text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 leading-tight italic">
-                  Анализ программной
-                  <br/>
-                  <span class="text-blue-900">архитектуры</span>
-                </h1>
-                <p class="text-lg sm:text-xl text-slate-600 font-light leading-relaxed">
-                  Исследование семантики двух репозиториев GitHub и трансформация эмоциональной коммуникации в технический контекст
-                </p>
-              </div>
-
-              <!-- Executive Summary Card -->
-              <div id="executive-summary" class="bento-card bg-white/80 backdrop-blur-sm border-2 border-blue-100">
-                <div class="flex items-center mb-4">
-                  <i class="fas fa-microscope text-2xl text-blue-600 mr-3"></i>
-                  <h3 class="serif text-xl font-semibold text-slate-900">Краткий ответ</h3>
-                </div>
-                <p class="text-slate-700 leading-relaxed">
-                  <strong>Да, наличие двух репозиториев не только возможно, но и является стандартной практикой.</strong> Количество репозиториев не определяет «силу» агента — это архитектурное решение о разделении ответственности. Синхронное обновление скорее указывает на связанность компонентов, чем на их дублирование.
-                </p>
-              </div>
-            </div>
-
-            <!-- Right Column: Visual Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="space-y-4">
-                <div class="bento-card bg-gradient-to-br from-blue-50 to-indigo-50">
-                  <i class="fas fa-code-branch text-3xl text-blue-600 mb-3"></i>
-                  <h4 class="font-semibold text-slate-900 mb-2">Разделение ответственности</h4>
-                  <p class="text-sm text-slate-600">Модульная архитектура системы</p>
-                </div>
-                <div class="bento-card bg-gradient-to-br from-green-50 to-emerald-50">
-                  <i class="fas fa-sync-alt text-3xl text-green-600 mb-3"></i>
-                  <h4 class="font-semibold text-slate-900 mb-2">Синхронизация</h4>
-                  <p class="text-sm text-slate-600">Обновление каждые 2 часа</p>
-                </div>
-              </div>
-              <div class="space-y-4">
-                <div class="bento-card bg-gradient-to-br from-purple-50 to-violet-50">
-                  <i class="fas fa-brain text-3xl text-purple-600 mb-3"></i>
-                  <h4 class="font-semibold text-slate-900 mb-2">AI-виджет</h4>
-                  <p class="text-sm text-slate-600">Интерактивный компонент</p>
-                </div>
-                <div class="bento-card bg-gradient-to-br from-orange-50 to-amber-50">
-                  <i class="fas fa-language text-3xl text-orange-600 mb-3"></i>
-                  <h4 class="font-semibold text-slate-900 mb-2">Семантика</h4>
-                  <p class="text-sm text-slate-600">Китайские диалектные коннотации</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Main Analysis -->
-      <div class="container mx-auto px-8 py-16 max-w-6xl">
-
-        <!-- Analysis Section -->
-        <section id="analysis" class="mb-16">
-          <h2 class="serif text-4xl font-bold text-slate-900 mb-8">Анализ пользовательского запроса</h2>
-
-          <div id="repositories" class="mb-12">
-            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Исходные объекты запроса</h3>
-
-            <div class="grid md:grid-cols-2 gap-6 mb-8">
-              <div class="bento-card bg-blue-50 border-blue-200">
-                <h4 class="font-semibold text-blue-900 mb-3 flex items-center">
-                  <i class="fas fa-folder-open mr-2"></i>
-                  trainingsw75-cloud.github.io
-                </h4>
-                <ul class="space-y-2 text-sm text-blue-800">
-                  <li>• Публичный репозиторий GitHub Pages</li>
-                  <li>• Обучающие материалы по облачным технологиям</li>
-                  <li>• Содержимое: HTML</li>
-                  <li>• Обновление: 2 часа назад</li>
-                </ul>
-              </div>
-
-              <div class="bento-card bg-purple-50 border-purple-200">
-                <h4 class="font-semibold text-purple-900 mb-3 flex items-center">
-                  <i class="fas fa-robot mr-2"></i>
-                  ai-widget
-                </h4>
-                <ul class="space-y-2 text-sm text-purple-800">
-                  <li>• Публичный репозиторий</li>
-                  <li>• Компонент искусственного интеллекта</li>
-                  <li>• Содержимое: HTML</li>
-                  <li>• Обновление: 2 часа назад</li>
-                </ul>
-              </div>
-            </div>
-
-            <p class="text-slate-700 mb-6">
-              <strong>Синхронность временных меток</strong> — ключевой технический индикатор. Обновление обоих репозиториев с точностью до часа указывает на возможные сценарии: автоматизированную систему CI/CD, ручную координацию разработчиков или функциональную взаимосвязь компонентов.
-            </p>
-          </div>
-
-          <div id="emotional-tone" class="mb-12">
-            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Эмоциональная окраска запроса</h3>
-
-            <div class="quote-block">
-              <p class="text-lg mb-4">
-                &#34;МОЖЕТ 2 РЕПОЗИТОРИЯ? ОН СЛАБЫЙ АГЕНТ ТАКОЙ ЖЕ ТУПОЙ КАК И ТЫ!&#34;
-              </p>
-              <p class="text-slate-600">
-                Лингвистическая структура демонстрирует выраженную эмоциональную нагруженность, переходящую в агрессивную коммуникативную регистрацию.
-              </p>
-            </div>
-
-            <div class="grid md:grid-cols-3 gap-6 mt-8">
-              <div class="bento-card bg-red-50 border-red-200">
-                <h4 class="font-semibold text-red-900 mb-3">Когнитивный диссонас</h4>
-                <p class="text-sm text-red-800">
-                  Вопрос о «двух репозиториях» содержит предпосылку о ненормативности ситуации
-                </p>
-              </div>
-              <div class="bento-card bg-orange-50 border-orange-200">
-                <h4 class="font-semibold text-orange-900 mb-3">Ad hominem атака</h4>
-                <p class="text-sm text-orange-800">
-                  Сравнение «ТАКОЙ ЖЕ ТУПОЙ КАК И ТЫ» реализует прямую персонализацию
-                </p>
-              </div>
-              <div class="bento-card bg-yellow-50 border-yellow-200">
-                <h4 class="font-semibold text-yellow-900 mb-3">Техническая метафора</h4>
-                <p class="text-sm text-yellow-800">
-                  Характеристика «СЛАБЫЙ АГЕНТ» трансформирует обсуждение в оценку компетентности
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div class="section-divider"></div>
-
-        <!-- Linguistic Context Section -->
-        <section id="linguistic-context" class="mb-16">
-          <h2 class="serif text-4xl font-bold text-slate-900 mb-8">Лингвистический контекст исследования</h2>
-
-          <div id="dialect-research" class="mb-12">
-            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Тематика предшествующих исследований</h3>
-
-            <div class="bento-card mb-8">
-              <img src="https://kimi-web-img.moonshot.cn/img/pic.616pic.com/8239f97666883e2b9a430bf42bc4c2cc834fd246.jpg" alt="Китайский иероглиф 苕 на традиционном фоне" class="w-full h-48 object-cover rounded-lg mb-6" size="medium" aspect="wide" color="white" style="photo" query="苕 Chinese character calligraphy" referrerpolicy="no-referrer" data-modified="1" data-score="0.00"/>
-
-              <p class="text-slate-700 mb-6">
-                Предшествующий диалогический контекст был сосредоточен на области <strong>китайской диалектной лексикологии</strong>, с конкретной фокусировкой на полисемантическом иероглифе <strong>«苕»</strong> (tiáo/sháo). Исследование включало многоступенчатый процесс верификации гипотез о семантической эволюции лексемы.
-              </p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8">
-              <div class="bento-card bg-green-50 border-green-200">
-                <h4 class="font-semibold text-green-900 mb-4">Хубэйский диалект</h4>
-                <ul class="space-y-2 text-sm text-green-800">
-                  <li>• <strong>苕货</strong> (sháo huò) — дурак, болван</li>
-                  <li>• <strong>哈巴苕</strong> (hǎ ba sháo) — усиленная форма</li>
-                  <li>• <strong>苕坯子</strong> (sháo pī zi) — недоделанный человек</li>
-                  <li>• <strong>体面苕</strong> (tǐ miàn sháo) — приличный снаружи, глупый внутри</li>
-                </ul>
-              </div>
-
-              <div class="bento-card bg-blue-50 border-blue-200">
-                <h4 class="font-semibold text-blue-900 mb-4">Сычуаньский диалект</h4>
-                <ul class="space-y-2 text-sm text-blue-800">
-                  <li>• <strong>苕头苕脑</strong> (sháo tóu sháo nǎo) — консервативное мышление</li>
-                  <li>• <strong>红配绿，苕得哭</strong> — нелепое сочетание</li>
-                  <li>• Эстетическая коннотация «деревенскости»</li>
-                  <li>• Социально-эстетическая оценка</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div id="semantic-findings" class="mb-12">
-            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Ключевые находки</h3>
-
-            <div class="bento-card bg-slate-100">
-              <h4 class="font-semibold text-slate-900 mb-4">Механизмы семантической трансформации</h4>
-              <div class="space-y-4">
-                <div class="flex items-start space-x-3">
-                  <div class="w-2 h-2 bg-slate-600 rounded-full mt-2"></div>
-                  <p class="text-slate-700">
-                    <strong>Когнитивная метафора:</strong> Перенос характеристик растения (батата) на человеческие качества
-                  </p>
-                </div>
-                <div class="flex items-start space-x-3">
-                  <div class="w-2 h-2 bg-slate-600 rounded-full mt-2"></div>
-                  <p class="text-slate-700">
-                    <strong>Диалектная диффузия:</strong> Распространение через миграционные процессы («湖广填四川»)
-                  </p>
-                </div>
-                <div class="flex items-start space-x-3">
-                  <div class="w-2 h-2 bg-slate-600 rounded-full mt-2"></div>
-                  <p class="text-slate-700">
-                    <strong>Регистровая вариативность:</strong> От ругательства до ласкового обращения
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <p class="text-slate-700 mt-6">
-              Исследование выявило <a href="#" class="citation">百度百科</a> как основной авторитетный источник, подтвердивший пейоративную семантику иероглифа в хубэйском диалекте. Методология включала систематический поиск на китайских платформах и критическую оценку источников.
-            </p>
-          </div>
-        </section>
-
-        <div class="section-divider"></div>
-
-        <!-- Technical Analysis Section -->
-        <section id="technical-analysis" class="mb-16">
-          <h2 class="serif text-4xl font-bold text-slate-900 mb-8">Техническая структура репозиториев</h2>
-
-          <div id="architecture" class="mb-12">
-            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Архитектурный анализ</h3>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-8">
-              <div class="bento-card">
-                <h4 class="font-semibold text-slate-900 mb-4 flex items-center">
-                  <i class="fas fa-graduation-cap text-blue-600 mr-2"></i>
-                  Обучающий портал
-                </h4>
-                <p class="text-slate-700 mb-4">
-                  <strong>trainingsw75-cloud.github.io</strong> — статический сайт GitHub Pages, специализированный на обучении облачным технологиям.
-                </p>
-                <div class="space-y-2 text-sm text-slate-600">
-                  <div class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    Структурированный контент (Markdown/HTML)
-                  </div>
-                  <div class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    Система навигации по модулям
-                  </div>
-                  <div class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    Интерактивные элементы и sandboxes
-                  </div>
-                </div>
-              </div>
-
-              <div class="bento-card">
-                <h4 class="font-semibold text-slate-900 mb-4 flex items-center">
-                  <i class="fas fa-robot text-purple-600 mr-2"></i>
-                  AI-компонент
-                </h4>
-                <p class="text-slate-700 mb-4">
-                  <strong>ai-widget</strong> — автономный, переиспользуемый компонент пользовательского интерфейса с AI-функциональностью.
-                </p>
-                <div class="space-y-2 text-sm text-slate-600">
-                  <div class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    Встраиваемый интерактивный элемент
-                  </div>
-                  <div class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    Функциональность обработки естественного языка
-                  </div>
-                  <div class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    Инкапсулированная логика
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="mermaid-container">
-              <div class="mermaid-controls">
-                <button class="mermaid-control-btn zoom-in" title="Увеличить">
-                  <i class="fas fa-search-plus"></i>
-                </button>
-                <button class="mermaid-control-btn zoom-out" title="Уменьшить">
-                  <i class="fas fa-search-minus"></i>
-                </button>
-                <button class="mermaid-control-btn reset-zoom" title="Сбросить">
-                  <i class="fas fa-expand-arrows-alt"></i>
-                </button>
-                <button class="mermaid-control-btn fullscreen" title="Полный экран">
-                  <i class="fas fa-expand"></i>
-                </button>
-              </div>
-              <div class="mermaid" id="architecture-diagram">
-                graph TB
-                A[&#34;trainingsw75-cloud.github.io&#34;] --&gt; B[&#34;GitHub Pages&#34;]
-                C[&#34;ai-widget&#34;] --&gt; D[&#34;NPM Package&#34;]
-                B --&gt; E[&#34;Обучающий портал&#34;]
-                D --&gt; F[&#34;Встраиваемый компонент&#34;]
-                E --&gt; G[&#34;Пользовательский интерфейс&#34;]
-                F --&gt; G
-
-                style A fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#0f172a
-                style C fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#0f172a
-                style E fill:#e8f5e8,stroke:#388e3c,stroke-width:3px,color:#0f172a
-                style F fill:#fff3e0,stroke:#f57c00,stroke-width:3px,color:#0f172a
-                style G fill:#fce4ec,stroke:#c2185b,stroke-width:3px,color:#0f172a
-                style B fill:#f5f5f5,stroke:#424242,stroke-width:2px,color:#0f172a
-                style D fill:#f5f5f5,stroke:#424242,stroke-width:2px,color:#0f172a
-              </div>
-            </div>
-          </div>
-
-          <div id="synchronization" class="mb-12">
-            <h3 class="serif text-2xl font-semibold text-slate-800 mb-6">Анализ синхронизации</h3>
-
-            <div class="bento-card bg-yellow-50 border-yellow-200 mb-8">
-              <h4 class="font-semibold text-yellow-900 mb-4">Возможные сценарии синхронизации</h4>
-              <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                  <thead>
-                    <tr class="border-b border-yellow-200">
-                      <th class="text-left py-3 px-4 font-semibold">Сценарий</th>
-                      <th class="text-left py-3 px-4 font-semibold">Вероятность</th>
-                      <th class="text-left py-3 px-4 font-semibold">Диагностические признаки</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr class="border-b border-yellow-100">
-                      <td class="py-3 px-4 font-medium">Единый CI/CD pipeline</td>
-                      <td class="py-3 px-4 text-green-700">Высокая</td>
-                      <td class="py-3 px-4 text-slate-600">.github/workflows/, идентичные коммиты</td>
-                    </tr>
-                    <tr class="border-b border-yellow-100">
-                      <td class="py-3 px-4 font-medium">Монорепозиторий с субмодулями</td>
-                      <td class="py-3 px-4 text-yellow-700">Средняя</td>
-                      <td class="py-3 px-4 text-slate-600">.gitmodules, специфическая структура</td>
-                    </tr>
-                    <tr class="border-b border-yellow-100">
-                      <td class="py-3 px-4 font-medium">Ручная координация</td>
-                      <td class="py-3 px-4 text-yellow-700">Средняя</td>
-                      <td class="py-3 px-4 text-slate-600">Разные сообщения коммитов, разница в минутах</td>
-                    </tr>
-                    <tr class="border-b border-yellow-100">
-                      <td class="py-3 px-4 font-medium">Зависимость через package manager</td>
-                      <td class="py-3 px-4 text-red-700">Низкая</td>
-                      <td class="py-3 px-4 text-slate-600">package.json, requirements.txt</td>
-                    </tr>
-                    <tr>
-                      <td class="py-3 px-4 font-medium">Совпадение</td>
-                      <td class="py-3 px-4 text-red-700">Низкая</td>
-                      <td class="py-3 px-4 text-slate-600">Статистический анализ частоты</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <p class="text-slate-700">
-              <strong>Техническое замечание:</strong> GitHub отображает время обновлений с дискретностью в один час («2 hours ago» может означать интервал 1:30–2:30). Синхронность, следовательно, указывает на скоординированные изменения, а не на идентичность содержимого.
-            </p>
-          </div>
-        </section>
-
-        <div class="section-divider"></div>
-
-        <!-- Recommendations Section -->
-        <section id="recommendations" class="mb-16">
-          <h2 class="serif text-4xl font-bold text-slate-900 mb-8">Рекомендации и выводы</h2>
-
-          <div class="grid md:grid-cols-2 gap-8 mb-12">
-            <div class="bento-card bg-green-50 border-green-200">
-              <h3 class="font-semibold text-green-900 mb-4 flex items-center">
-                <i class="fas fa-check-circle mr-2"></i>
-                Архитектурные преимущества
-              </h3>
-              <ul class="space-y-3 text-green-800">
-                <li class="flex items-start">
-                  <i class="fas fa-arrow-right text-green-600 mr-2 mt-1 text-sm"></i>
-                  <span><strong>Разделение ответственности</strong> — каждый компонент имеет четко определенную функцию</span>
-                </li>
-                <li class="flex items-start">
-                  <i class="fas fa-arrow-right text-green-600 mr-2 mt-1 text-sm"></i>
-                  <span><strong>Модульность</strong> — возможность независимой эволюции компонентов</span>
-                </li>
-                <li class="flex items-start">
-                  <i class="fas fa-arrow-right text-green-600 mr-2 mt-1 text-sm"></i>
-                  <span><strong>Переиспользование</strong> — виджет может использоваться в других контекстах</span>
-                </li>
-                <li class="flex items-start">
-                  <i class="fas fa-arrow-right text-green-600 mr-2 mt-1 text-sm"></i>
-                  <span><strong>Тестируемость</strong> — изолированные компоненты легче тестировать</span>
-                </li>
-              </ul>
-            </div>
-
-            <div class="bento-card bg-red-50 border-red-200">
-              <h3 class="font-semibold text-red-900 mb-4 flex items-center">
-                <i class="fas fa-exclamation-triangle mr-2"></i>
-                Технические заблуждения
-              </h3>
-              <ul class="space-y-3 text-red-800">
-                <li class="flex items-start">
-                  <i class="fas fa-times text-red-600 mr-2 mt-1 text-sm"></i>
-                  <span>Два репозитория ≠ дублирование (разные функции: сайт vs компонент)</span>
-                </li>
-                <li class="flex items-start">
-                  <i class="fas fa-times text-red-600 mr-2 mt-1 text-sm"></i>
-                  <span>Синхронное обновление ≠ идентичность (указывает на связанность)</span>
-                </li>
-                <li class="flex items-start">
-                  <i class="fas fa-times text-red-600 mr-2 mt-1 text-sm"></i>
-                  <span>Количество репозиториев ≠ сила агента (агентность определяется runtime)</span>
-                </li>
-                <li class="flex items-start">
-                  <i class="fas fa-times text-red-600 mr-2 mt-1 text-sm"></i>
-                  <span>Репозитории как хранилища ≠ агенты как исполняемые системы</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="bento-card bg-blue-50 border-blue-200 mb-8">
-            <h3 class="font-semibold text-blue-900 mb-6">Диагностическая процедура</h3>
-            <div class="grid md:grid-cols-3 gap-6">
-              <div>
-                <h4 class="font-medium text-blue-900 mb-3">1. Анализ истории коммитов</h4>
-                <p class="text-sm text-blue-800 mb-2">git log, GitHub Web Interface</p>
-                <p class="text-xs text-blue-600">Выявление паттернов синхронизации</p>
-              </div>
-              <div>
-                <h4 class="font-medium text-blue-900 mb-3">2. Изучение зависимостей</h4>
-                <p class="text-sm text-blue-800 mb-2">package.json, requirements.txt</p>
-                <p class="text-xs text-blue-600">Перекрёстные ссылки между репозиториями</p>
-              </div>
-              <div>
-                <h4 class="font-medium text-blue-900 mb-3">3. Функциональное тестирование</h4>
-                <p class="text-sm text-blue-800 mb-2">Browser DevTools, Network tab</p>
-                <p class="text-xs text-blue-600">Измерение функциональных характеристик</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="quote-block bg-gradient-to-r from-blue-50 to-indigo-50 border-l-blue-500">
-            <p class="text-lg text-slate-800 font-medium mb-4">
-              &#34;Синхронное обновление репозиториев — это не признак слабости, а индикатор тщательно спланированной архитектуры, где изменения в одном компоненте требуют соответствующих адаптаций в другом.&#34;
-            </p>
-            <p class="text-slate-600 text-sm">
-              — Технический анализ программной архитектуры
-            </p>
-          </div>
-        </section>
-
-        <!-- Conclusion -->
-        <section class="mb-16">
-          <div class="bento-card bg-gradient-to-br from-slate-50 to-blue-50 border-2 border-slate-200">
-            <div class="text-center">
-              <h2 class="serif text-3xl font-bold text-slate-900 mb-6">Заключение</h2>
-              <p class="text-lg text-slate-700 leading-relaxed max-w-4xl mx-auto">
-                Наличие двух синхронизированных репозиториев GitHub представляет собой не просто допустимый, но <strong>архитектурно целесообразный подход</strong> к разработке программных систем. Разделение ответственности между обучающим порталом и AI-компонентом обеспечивает модульность, тестируемость и масштабируемость системы. Синхронное обновление указывает на <strong>скоординированную разработку</strong>, а не на дублирование функциональности.
-              </p>
-            </div>
-          </div>
-        </section>
-      </div>
-    </main>
-
-    <script>
-        // Initialize Mermaid with enhanced theme and contrast
-        mermaid.initialize({ 
-            startOnLoad: true, 
-            theme: 'base',
-            themeVariables: {
-                primaryColor: '#f8fafc',
-                primaryTextColor: '#0f172a',
-                primaryBorderColor: '#1e293b',
-                lineColor: '#475569',
-                secondaryColor: '#e2e8f0',
-                tertiaryColor: '#f1f5f9',
-                background: '#ffffff',
-                mainBkg: '#f8fafc',
-                secondBkg: '#e2e8f0',
-                tertiaryBkg: '#f1f5f9',
-                nodeBorder: '#1e293b',
-                clusterBkg: '#f8fafc',
-                clusterBorder: '#475569',
-                defaultLinkColor: '#475569',
-                titleColor: '#0f172a',
-                edgeLabelBackground: '#ffffff',
-                nodeTextColor: '#0f172a',
-                // Enhanced contrast colors for different node types
-                cScale0: '#e3f2fd',
-                cScale1: '#f3e5f5', 
-                cScale2: '#e8f5e8',
-                cScale3: '#fff3e0',
-                cScale4: '#fce4ec',
-                cScale5: '#f5f5f5'
-            },
-            flowchart: {
-                useMaxWidth: false,
-                htmlLabels: true,
-                curve: 'basis',
-                padding: 20,
-                nodeSpacing: 50,
-                rankSpacing: 80,
-                diagramPadding: 20
-            },
-            fontSize: 13,
-            fontFamily: 'Inter, sans-serif'
-        });
-        
-        // Initialize Mermaid Controls for zoom and pan
-        function initializeMermaidControls() {
-            const containers = document.querySelectorAll('.mermaid-container');
-
-            containers.forEach(container => {
-            const mermaidElement = container.querySelector('.mermaid');
-            let scale = 1;
-            let isDragging = false;
-            let startX, startY, translateX = 0, translateY = 0;
-
-            // 触摸相关状态
-            let isTouch = false;
-            let touchStartTime = 0;
-            let initialDistance = 0;
-            let initialScale = 1;
-            let isPinching = false;
-
-            // Zoom controls
-            const zoomInBtn = container.querySelector('.zoom-in');
-            const zoomOutBtn = container.querySelector('.zoom-out');
-            const resetBtn = container.querySelector('.reset-zoom');
-            const fullscreenBtn = container.querySelector('.fullscreen');
-
-            function updateTransform() {
-                mermaidElement.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-
-                if (scale > 1) {
-                container.classList.add('zoomed');
-                } else {
-                container.classList.remove('zoomed');
-                }
-
-                mermaidElement.style.cursor = isDragging ? 'grabbing' : 'grab';
-            }
-
-            if (zoomInBtn) {
-                zoomInBtn.addEventListener('click', () => {
-                scale = Math.min(scale * 1.25, 4);
-                updateTransform();
-                });
-            }
-
-            if (zoomOutBtn) {
-                zoomOutBtn.addEventListener('click', () => {
-                scale = Math.max(scale / 1.25, 0.3);
-                if (scale <= 1) {
-                    translateX = 0;
-                    translateY = 0;
-                }
-                updateTransform();
-                });
-            }
-
-            if (resetBtn) {
-                resetBtn.addEventListener('click', () => {
-                scale = 1;
-                translateX = 0;
-                translateY = 0;
-                updateTransform();
-                });
-            }
-
-            if (fullscreenBtn) {
-                fullscreenBtn.addEventListener('click', () => {
-                if (container.requestFullscreen) {
-                    container.requestFullscreen();
-                } else if (container.webkitRequestFullscreen) {
-                    container.webkitRequestFullscreen();
-                } else if (container.msRequestFullscreen) {
-                    container.msRequestFullscreen();
-                }
-                });
-            }
-
-            // Mouse Events
-            mermaidElement.addEventListener('mousedown', (e) => {
-                if (isTouch) return; // 如果是触摸设备，忽略鼠标事件
-
-                isDragging = true;
-                startX = e.clientX - translateX;
-                startY = e.clientY - translateY;
-                mermaidElement.style.cursor = 'grabbing';
-                updateTransform();
-                e.preventDefault();
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (isDragging && !isTouch) {
-                translateX = e.clientX - startX;
-                translateY = e.clientY - startY;
-                updateTransform();
-                }
-            });
-
-            document.addEventListener('mouseup', () => {
-                if (isDragging && !isTouch) {
-                isDragging = false;
-                mermaidElement.style.cursor = 'grab';
-                updateTransform();
-                }
-            });
-
-            document.addEventListener('mouseleave', () => {
-                if (isDragging && !isTouch) {
-                isDragging = false;
-                mermaidElement.style.cursor = 'grab';
-                updateTransform();
-                }
-            });
-
-            // 获取两点之间的距离
-            function getTouchDistance(touch1, touch2) {
-                return Math.hypot(
-                touch2.clientX - touch1.clientX,
-                touch2.clientY - touch1.clientY
-                );
-            }
-
-            // Touch Events - 触摸事件处理
-            mermaidElement.addEventListener('touchstart', (e) => {
-                isTouch = true;
-                touchStartTime = Date.now();
-
-                if (e.touches.length === 1) {
-                // 单指拖动
-                isPinching = false;
-                isDragging = true;
-
-                const touch = e.touches[0];
-                startX = touch.clientX - translateX;
-                startY = touch.clientY - translateY;
-
-                } else if (e.touches.length === 2) {
-                // 双指缩放
-                isPinching = true;
-                isDragging = false;
-
-                const touch1 = e.touches[0];
-                const touch2 = e.touches[1];
-                initialDistance = getTouchDistance(touch1, touch2);
-                initialScale = scale;
-                }
-
-                e.preventDefault();
-            }, { passive: false });
-
-            mermaidElement.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 1 && isDragging && !isPinching) {
-                // 单指拖动
-                const touch = e.touches[0];
-                translateX = touch.clientX - startX;
-                translateY = touch.clientY - startY;
-                updateTransform();
-
-                } else if (e.touches.length === 2 && isPinching) {
-                // 双指缩放
-                const touch1 = e.touches[0];
-                const touch2 = e.touches[1];
-                const currentDistance = getTouchDistance(touch1, touch2);
-
-                if (initialDistance > 0) {
-                    const newScale = Math.min(Math.max(
-                    initialScale * (currentDistance / initialDistance),
-                    0.3
-                    ), 4);
-                    scale = newScale;
-                    updateTransform();
-                }
-                }
-
-                e.preventDefault();
-            }, { passive: false });
-
-            mermaidElement.addEventListener('touchend', (e) => {
-                // 重置状态
-                if (e.touches.length === 0) {
-                isDragging = false;
-                isPinching = false;
-                initialDistance = 0;
-
-                // 延迟重置isTouch，避免鼠标事件立即触发
-                setTimeout(() => {
-                    isTouch = false;
-                }, 100);
-                } else if (e.touches.length === 1 && isPinching) {
-                // 从双指变为单指，切换为拖动模式
-                isPinching = false;
-                isDragging = true;
-
-                const touch = e.touches[0];
-                startX = touch.clientX - translateX;
-                startY = touch.clientY - translateY;
-                }
-
-                updateTransform();
-            });
-
-            mermaidElement.addEventListener('touchcancel', (e) => {
-                isDragging = false;
-                isPinching = false;
-                initialDistance = 0;
-
-                setTimeout(() => {
-                isTouch = false;
-                }, 100);
-
-                updateTransform();
-            });
-
-            // Enhanced wheel zoom with better center point handling
-            container.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                const rect = container.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-
-                const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                const newScale = Math.min(Math.max(scale * delta, 0.3), 4);
-
-                // Adjust translation to zoom towards center
-                if (newScale !== scale) {
-                const scaleDiff = newScale / scale;
-                translateX = translateX * scaleDiff;
-                translateY = translateY * scaleDiff;
-                scale = newScale;
-
-                if (scale <= 1) {
-                    translateX = 0;
-                    translateY = 0;
-                }
-
-                updateTransform();
-                }
-            });
-
-            // Initialize display
-            updateTransform();
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Mermaid
-            mermaid.initialize({ 
-                startOnLoad: true, 
-                theme: 'base',
-                themeVariables: {
-                    primaryColor: '#f8fafc',
-                    primaryTextColor: '#0f172a',
-                    primaryBorderColor: '#1e293b',
-                    lineColor: '#475569',
-                    secondaryColor: '#e2e8f0',
-                    tertiaryColor: '#f1f5f9',
-                    background: '#ffffff',
-                    mainBkg: '#f8fafc',
-                    secondBkg: '#e2e8f0',
-                    tertiaryBkg: '#f1f5f9',
-                    nodeBorder: '#1e293b',
-                    clusterBkg: '#f8fafc',
-                    clusterBorder: '#475569',
-                    defaultLinkColor: '#475569',
-                    titleColor: '#0f172a',
-                    edgeLabelBackground: '#ffffff',
-                    nodeTextColor: '#0f172a',
-                    // Enhanced contrast colors for different node types
-                    cScale0: '#e3f2fd',
-                    cScale1: '#f3e5f5', 
-                    cScale2: '#e8f5e8',
-                    cScale3: '#fff3e0',
-                    cScale4: '#fce4ec',
-                    cScale5: '#f5f5f5'
-                },
-                flowchart: {
-                    useMaxWidth: false,
-                    htmlLabels: true,
-                    curve: 'basis',
-                    padding: 20,
-                    nodeSpacing: 50,
-                    rankSpacing: 80,
-                    diagramPadding: 20
-                },
-                fontSize: 13,
-                fontFamily: 'Inter, sans-serif'
-            });
-            
-            // Initialize Mermaid Controls
-            initializeMermaidControls();
-
-            // Smooth scrolling for TOC links
-            document.querySelectorAll('.toc-link').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href').substring(1);
-                    const targetElement = document.getElementById(targetId);
-                    if (targetElement) {
-                        targetElement.scrollIntoView({ 
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
-                    }
-                });
-            });
-
-            // Highlight active section in TOC
-            window.addEventListener('scroll', function() {
-                const sections = document.querySelectorAll('section[id], div[id]');
-                const tocLinks = document.querySelectorAll('.toc-link');
-                
-                let currentSection = '';
-                sections.forEach(section => {
-                    const sectionTop = section.offsetTop;
-                    const sectionHeight = section.offsetHeight;
-                    if (window.scrollY >= sectionTop - 200) {
-                        currentSection = section.getAttribute('id');
-                    }
-                });
-
-                tocLinks.forEach(link => {
-                    link.classList.remove('text-white', 'font-semibold');
-                    link.classList.add('text-slate-300');
-                    if (link.getAttribute('href') === '#' + currentSection) {
-                        link.classList.remove('text-slate-300');
-                        link.classList.add('text-white', 'font-semibold');
-                    }
-                });
-            });
-        });
-    </script>
-  
-
-</body></html>
+<body>
+<div class="head">
+  <h1>WARHOOK AI ORACLE</h1>
+  <div class="sub">Выбери настроение — оракул подберёт художника и нарисует твоё предсказание</div>
+</div>
+<div class="moods" id="moods"></div>
+
+<div class="result" id="result">
+  <canvas id="cv"></canvas>
+  <div class="concept" id="concept"></div>
+  <div class="artist">
+    <div class="top"><div class="nm" id="aName"></div><div class="pr" id="aPrice"></div></div>
+    <div class="meta" id="aMeta"></div>
+    <div class="bio" id="aBio"></div>
+    <div class="acts">
+      <button id="sndBtn" onclick="sound()">🔊 Слушать</button>
+      <button onclick="savePng()">💾 PNG</button>
+      <button onclick="share()">📤 В Telegram</button>
+      <button class="pri" id="againBtn">🔮 Ещё</button>
+    </div>
+  </div>
+</div>
+
+<div class="foot">WARHOOK LEO CROC · <a href="https://trainingsw75-cloud.github.io/warhook-os/">приложение</a> · <a href="https://trainingsw75-cloud.github.io/sound.html">звук</a> · © 2026 Роман Крюков</div>
+
+<script>/* WARHOOK Sound — детерминированный «голос» картины из её seed. Чистый Web Audio. */
+window.WarhookSound = (function () {
+  let ctx, master, analyser, bus = null, playing = false, rafId = 0, endT = 0;
+  const SCALES = [[0,2,4,7,9],[0,3,5,7,10],[0,2,3,7,9],[0,2,5,7,10],[0,3,5,8,10],[0,2,4,6,9]];
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function mf(m){return 440*Math.pow(2,(m-69)/12);}
+  function ensure(){
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = 0.85;
+    const comp = ctx.createDynamicsCompressor();
+    analyser = ctx.createAnalyser(); analyser.fftSize = 256;
+    master.connect(comp); comp.connect(analyser); analyser.connect(ctx.destination);
+  }
+  function note(freq, t, dur, type, vol, dest){
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function viz(canvas){
+    if (!canvas) return;
+    const c2 = canvas.getContext('2d');
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    function loop(){
+      const w = canvas.width = canvas.clientWidth * 2;
+      const h = canvas.height = canvas.clientHeight * 2;
+      c2.clearRect(0,0,w,h);
+      if (!playing) return;
+      analyser.getByteFrequencyData(data);
+      const n = data.length, bw = w / n;
+      for (let i=0;i<n;i++){ const v=data[i]/255, bh=v*h; c2.fillStyle='rgba(228,178,76,'+(0.25+v*0.7)+')'; c2.fillRect(i*bw, h-bh, bw*0.7, bh); }
+      rafId = requestAnimationFrame(loop);
+    }
+    loop();
+  }
+  function play(seed, canvas, onEnd){
+    ensure(); if (ctx.state === 'suspended') ctx.resume();
+    stop();
+    const r = mulberry32((seed>>>0) || 1), now = ctx.currentTime + 0.06, DUR = 15;
+    bus = ctx.createGain(); bus.gain.value = 1; bus.connect(master);
+    const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 1500 + r()*2000; lp.connect(bus);
+    const delay = ctx.createDelay(); delay.delayTime.value = 0.22 + r()*0.14;
+    const fb = ctx.createGain(); fb.gain.value = 0.30; const wet = ctx.createGain(); wet.gain.value = 0.22;
+    delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(bus); lp.connect(delay);
+    const scale = SCALES[Math.floor(r()*SCALES.length)];
+    const root = 48 + Math.floor(r()*9);
+    const types = ['sine','triangle','sine','sawtooth'];
+    const mType = types[Math.floor(r()*types.length)];
+    const step = 0.15 + r()*0.14;
+    // pad (root + fifth)
+    note(mf(root-12), now, DUR, 'sine', 0.05, bus);
+    note(mf(root-12+7), now, DUR, 'sine', 0.045, bus);
+    // melody + bass
+    let t = now, i = 0;
+    while (t < now + DUR - 0.6){
+      const m = root + scale[Math.floor(r()*scale.length)] + 12*(1 + Math.floor(r()*2));
+      note(mf(m), t, step*(1.3 + r()*1.5), mType, 0.09 + r()*0.09, lp);
+      if (i % 4 === 0) note(mf(root-12 + scale[Math.floor(r()*scale.length)]), t, step*3, 'triangle', 0.09, bus);
+      t += step * (r() < 0.18 ? 2 : 1); i++;
+    }
+    playing = true; endT = Date.now() + DUR*1000;
+    viz(canvas);
+    clearTimeout(play._to);
+    play._to = setTimeout(function(){ playing = false; if (onEnd) onEnd(); }, DUR*1000 + 150);
+    return DUR;
+  }
+  function stop(){
+    playing = false; cancelAnimationFrame(rafId); clearTimeout(play._to);
+    if (bus && ctx){ try { bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05); const b=bus; setTimeout(function(){ try{b.disconnect();}catch(e){} }, 300); } catch(e){} bus = null; }
+  }
+  return { play: play, stop: stop, isPlaying: function(){ return playing; } };
+})();
+</script>
+<script>
+const ARTISTS = [{"n":"Энди Уорхол","c":"США","st":"Поп-арт","p":"$195 млн","bio":"Главный человек поп-арта: он превратил рекламу, консервные банки и лица звёзд в высокое искусство. Его 'Синяя простреленная Мэрилин' ушла за 195 миллионов долларов — это рекорд для американского худо…","m":["радость"]},{"n":"Жан-Мишель Баския","c":"США","st":"Нео-экспрессионизм, уличное искусство","p":"$111 млн","bio":"Начинал как уличный художник, писавший на стенах Нью-Йорка, а к 21 году стал звездой галерей. Его картина с черепом ушла за 110,5 миллиона — он самый молодой автор, чья работа перешагнула порог в 100…","m":["бунт","меланхолия"]},{"n":"Кит Харинг","c":"США","st":"Уличное искусство, поп-арт","p":"$6.5 млн","bio":"Его простые фигурки — сияющий младенец, лающие собаки, танцующие человечки — знают буквально все, они стали значками, футболками и муралами по всему миру. Начинал с рисунков мелом в нью-йоркском метр…","m":["бунт","меланхолия","радость"]},{"n":"Рой Лихтенштейн","c":"США","st":"Поп-арт","p":"$56 млн","bio":"Он взял язык комиксов — крупные точки, жирные контуры, реплики в 'облачках' — и сделал из него серьёзную живопись. 'Женщина в шляпе с цветами' ушла с молотка за 56 миллионов долларов. А его картину '…","m":["радость","игра"]},{"n":"Марк Ротко","c":"США (родился в Российской империи, ныне…","st":"Абстрактный экспрессионизм, цветовое поле","p":"$87 млн","bio":"Прославился огромными полотнами, на которых — просто большие прямоугольники чистого цвета, будто светящиеся изнутри. Люди подолгу стоят перед ними и порой плачут. На публичном аукционе его 'Оранжевый…","m":["тишина","меланхолия","радость"]},{"n":"Джексон Поллок","c":"США","st":"Абстрактный экспрессионизм, дриппинг ('капельная живопись')","p":"$61 млн","bio":"Прославился тем, что клал холст на пол и разбрызгивал по нему краску прямо из банки — так родилась 'капельная живопись'. На публичном аукционе его чёрное 'Number 17, 1951' ушло примерно за 61 миллион…","m":["тишина","меланхолия"]},{"n":"Бэнкси","c":"Великобритания","st":"Уличное искусство, трафаретная графика, политическая сатира","p":"$25 млн","bio":"Самый знаменитый анонимный художник мира: никто не знает его лица, а работы уходят за десятки миллионов. Его картина «Любовь в мусорной корзине» частично самоуничтожилась прямо на аукционе в 2018 год…","m":["бунт","провокация","любовь"]},{"n":"Джефф Кунс","c":"США","st":"Неопоп, китч, гигантские глянцевые скульптуры","p":"$91 млн","bio":"Один из самых дорогих ныне живущих художников. Его зеркальный стальной «Кролик» 1986 года продали в 2019 году примерно за 91 миллион долларов — на тот момент это был мировой рекорд для работы живого…","m":["радость","провокация","игра"]},{"n":"Дэмьен Хёрст","c":"Великобритания","st":"Концептуализм, искусство о смерти и деньгах","p":"$19 млн","bio":"Самый громкий и богатый из «молодых британских художников». Прославился акулой и другими животными, законсервированными в формалине, — искусством прямо о смерти. Его аптечный шкаф «Колыбельная. Весна…","m":["меланхолия","провокация"]},{"n":"Яёи Кусама","c":"Япония","st":"Горошек (polka dots), «сети бесконечности», зеркальные комн…","p":"$10 млн","bio":"Живая легенда из Японии, которой под сто лет и которая много лет по своей воле живёт в психиатрической клинике, каждый день приходя в мастерскую. Её горошек и зеркальные комнаты бесконечности стали х…","m":["тишина","радость","любовь"]},{"n":"Герхард Рихтер","c":"Германия","st":"От фотореализма (размытые «фотокартины») до абстракций, сде…","p":"$46 млн","bio":"Немец, которого часто называют величайшим из ныне живущих живописцев. Он умеет и почти фотографически точные размытые картины, и огромные абстракции, где краску растягивает по холсту большим резиновы…","m":["меланхолия","провокация"]},{"n":"Дэвид Хокни","c":"Великобритания","st":"Яркая фигуративная живопись, калифорнийские бассейны, портр…","p":"$90 млн","bio":"Британец, влюблённый в солнечную Калифорнию: его синие бассейны и брызги воды знают все. Картину «Портрет художника (Бассейн с двумя фигурами)» продали в 2018 году примерно за 90 миллионов долларов —…","m":["тишина","радость","провокация","любовь"]},{"n":"Такаси Мураками","c":"Япония","st":"«Суперплоскость» (Superflat), яркие улыбающиеся цветы, аним…","p":"$15 млн","bio":"Японец, стёрший границу между высоким искусством и поп-культурой: его улыбающиеся цветы и аниме-персонажи одинаково уместны в музее и на футболке. Провокационная скульптура «Одинокий ковбой» ушла в 2…","m":["радость","провокация"]},{"n":"КОУС (KAWS)","c":"США","st":"Поп-арт со стрит-артовыми корнями: персонажи с крестиками в…","p":"$15 млн","bio":"Начинал как уличный художник, перерисовывавший рекламу, а стал звездой, чьи фигурки-игрушки раскупают за минуты. Его фирменные персонажи с крестиками вместо глаз узнают молодые коллекционеры по всему…","m":["бунт","радость","игра"]},{"n":"Завен Аршакуни","c":"Россия (армянские корни), Ленинград — С…","st":"Ленинградская школа живописи, экспрессивная и очень цветная…","p":"нет аукц. рекорда","bio":"Один из ярких мастеров ленинградской живописной школы. Его картины любят за тёплый, солнечный колорит и добрую человечность — при этом за внешней лёгкостью стоит серьёзная школа и уважение музеев.","m":["меланхолия","радость"]},{"n":"Вячеслав Михайлов","c":"Россия, село Арзгир (Ставрополье) — Сан…","st":"Мастер фактуры. Многослойный левкас (грунт, как в иконописи…","p":"нет аукц. рекорда","bio":"Заслуженный художник России и один из основателей петербургской ветви неоэкспрессионизма (вместе с Валерием Луккой). Его фактурные холсты — узнаваемый почерк, ценятся музеями по всему миру.","m":["тишина","меланхолия"]},{"n":"Владимир Духовлинов","c":"Россия, родился в Даугавпилсе (Латвия)…","st":"Путь от Сезанна и сюрреализма (Дельво, де Кирико) к тому, ч…","p":"нет аукц. рекорда","bio":"Признанный петербургский абстракционист, лауреат Царскосельской художественной премии (посмертно, 2023). Его умение слышать фактуру материала делает работы штучными и музейными.","m":["тишина","меланхолия","провокация"]},{"n":"Владимир Овчинников","c":"Россия, родился в Пермском крае — жил в…","st":"Магический реализм. Ангелы и библейские сцены среди хмурых…","p":"нет аукц. рекорда","bio":"Заслуженный художник РФ и один из ведущих мастеров ленинградского андеграунда. Его тихий магический реализм — ангелы среди серых будней — стал классикой петербургского неофициального искусства.","m":["бунт","меланхолия"]},{"n":"Елена Фигурина","c":"Россия, родилась в Вентспилсе (Латвия)…","st":"Экспрессионизм. Широкие мазки, локальные насыщенные цвета,…","p":"нет аукц. рекорда","bio":"Пришла в искусство не через академию, а по внутреннему зову — и стала одной из ключевых фигур петербургского экспрессионизма. Её простые на вид, но мощные образы узнают с первого взгляда.","m":["меланхолия","радость"]},{"n":"Валерий Лукка","c":"Россия (русско-финские корни), родился…","st":"«Концептуальный экспрессионизм». Смысл и чувство передаются…","p":"нет аукц. рекорда","bio":"Бывший офицер, ушедший в искусство ради живописи, и один из основателей петербургского неоэкспрессионизма. Его фактурные, почти рельефные холсты — сильный узнаваемый стиль, отмеченный музеями России…","m":["тишина","меланхолия"]},{"n":"Ринат Волигамси","c":"Россия (Башкортостан)","st":"Сюрреализм, ретрофотореализм","p":"нет аукц. рекорда","bio":"Волигамси делает картины, которые притворяются старыми чёрно-белыми фотографиями, но на них происходит что-то невозможное: двойники, странные военные будни, тихая жуть. Зритель сначала верит, что это…","m":["тишина"]},{"n":"Александр Дашевский","c":"Россия (Санкт-Петербург)","st":"Современная фигуративная живопись, урбанистический пейзаж,…","p":"нет аукц. рекорда","bio":"Дашевский рисует то, мимо чего мы проходим не глядя: пустой бассейн, серую панельку, бетонный гараж, тоннель метро. В его руках эти скучные и заброшенные места становятся почти торжественными, немног…","m":["тишина","меланхолия","любовь"]},{"n":"Владимир Мигачёв","c":"Россия (Краснодар)","st":"Неоэкспрессионизм, пейзаж; смешанная техника","p":"нет аукц. рекорда","bio":"Мигачёв делает пейзажи не только красками, но и землёй, углём, цементом — прямо тем веществом, из которого состоит сама земля. Его картины большие, почти чёрно-белые и очень мощные: смотришь и будто…","m":["тишина","меланхолия"]},{"n":"Владлен Гаврильчик","c":"Россия / СССР (Ленинград–Петербург)","st":"Наив, примитивизм, «парсунный стиль»; ленинградский андегра…","p":"$12 500","bio":"Гаврильчик рисовал нарочно «неправильно» — как будто наивный самоучка, хотя на самом деле прекрасно владел рукой. Его смешные, чуть корявые фигуры и переделанные на лубок советские сюжеты — это добра…","m":["бунт","радость","игра"]},{"n":"Николай Копейкин","c":"Россия (Санкт-Петербург)","st":"«Мультреализм», гротеск, ирония; группа КОЛХУи","p":"нет аукц. рекорда","bio":"Копейкин рисует как в мультфильме — ярко, смешно и зло. Он придумал целое направление «мультреализм» и возглавил компанию друзей-художников КОЛХУи («Колдовские художники») с девизом «рисую как могу».…","m":["радость","игра"]},{"n":"Пётр Горбань","c":"Россия / СССР (Ставрополь)","st":"Экспрессионизм","p":"нет аукц. рекорда","bio":"Горбань — фронтовик-танкист, который после войны стал одним из сильнейших русских экспрессионистов конца XX века. Он писал не парадную, а настоящую жизнь простых людей — с болью, силой и глубоким смы…","m":["тишина","меланхолия","игра"]},{"n":"Андрей Рудьев","c":"Россия","st":"Современное искусство, инсталляция, коллаж; сам художник на…","p":"нет аукц. рекорда","bio":"Один из заметных петербургских художников своего поколения. Работает без привязки к одному стилю: то большие городские акции вроде пингвинов на фасаде, то коллажи, обыгрывающие советскую «наглядную а…","m":["меланхолия","провокация","игра"]},{"n":"Евгений Ухналёв","c":"Россия / СССР","st":"Графика и живопись, тонкий, почти чертёжный реализм; гераль…","p":"нет аукц. рекорда","bio":"Судьба на разрыв: пережил блокаду, в 17 лет по доносу получил 25 лет лагерей, сидел в «Крестах» и Воркутлаге, потом был реабилитирован. Стал главным архитектором Эрмитажа и народным художником России…","m":["тишина"]},{"n":"Юлий Рыбаков","c":"Россия / СССР","st":"Ленинградский нонконформизм, неофициальное искусство","p":"нет аукц. рекорда","bio":"Родился в лагере для политзаключённых, сам потом сел на шесть лет — за ту самую надпись на Петропавловке. Один из создателей легендарного арт-центра «Пушкинская-10» и «Товарищества Свободная культура…","m":["бунт"]},{"n":"Владимир Шинкарёв","c":"Россия / СССР","st":"От иронии «Митьков» к сдержанной, почти монохромной петербу…","p":"нет аукц. рекорда","bio":"Придумал «Митьков» — добрых бородатых шалопаев в тельняшках, которые стали целой субкультурой 1980-х. Но сам эту роль перерос: его поздняя живопись — тихие, сумрачные виды Петербурга, где всё держитс…","m":["тишина","меланхолия","игра"]},{"n":"Игорь Новиков","c":"Россия / Швейцария","st":"Соц-арт, поздний нонконформизм; фирменный приём — красные ч…","p":"нет аукц. рекорда","bio":"Один из основателей знаменитого московского арт-сквота в Фурманном переулке, с 1990 года живёт в Швейцарии. Его узнают по толпам маленьких человечков-знаков, которые он «расселяет» по чужим и своим к…","m":["бунт","тишина"]},{"n":"Николай Полисский","c":"Россия","st":"Ленд-арт, крупная скульптура из природных материалов (лоза,…","p":"нет аукц. рекорда","bio":"Начинал у «Митьков», а в 43 года круто повернул к ленд-арту и стал главным в России мастером этого жанра. В деревне Никола-Ленивец вместе с местными жителями строит огромные объекты из лозы, дерева и…","m":["тишина"]},{"n":"Фрэнсис Бэкон","c":"ирландско-британский художник","st":"Фигуративный экспрессионизм. Бэкон писал человека как кусок…","p":"$142 млн","bio":"В ноябре 2013-го 'Три этюда к портрету Люсьена Фрейда' ушли с молотка Christie's за 142,4 млн долларов после шести минут бешеных торгов — на тот момент это была самая дорогая работа, когда-либо прода…","m":["меланхолия"]},{"n":"Люсьен Фрейд","c":"британский художник (родился в Германии…","st":"Беспощадный реализм плоти. Фрейд писал обнажённую натуру гу…","p":"$86 млн","bio":"В ноябре 2022-го 'Большой интерьер, W11 (по Ватто)' продали на Christie's за 86,3 млн долларов, перебив прежний рекорд художника сразу на 30 млн. Фрейд — последний великий реалист-фигуративист XX век…","m":["меланхолия"]},{"n":"Виллем де Кунинг","c":"нидерландско-американский художник","st":"Абстрактный экспрессионизм, но с яростным телесным зарядом.…","p":"$66 млн","bio":"'Без названия XXV' продано на Christie's в ноябре 2016-го за 66,3 млн долларов — мировой аукционный рекорд художника (за 10 лет до этого та же картина стоила 27 млн, то есть цена выросла вдвое). Де К…","m":["тишина","меланхолия","провокация"]},{"n":"Сай Твомбли","c":"американский художник","st":"Гибрид живописи и письма. Твомбли покрывал холсты нервными…","p":"$71 млн","bio":"В ноябре 2015-го 'blackboard'-картина 'Untitled (New York City)' ушла на Sotheby's за 70,5 млн долларов — аукционный рекорд Твомбли, обошедший прежний на почти миллион. Кажущаяся простота 'детских ка…","m":["бунт","игра"]},{"n":"Роберт Раушенберг","c":"американский художник","st":"Нео-дада и пионер поп-арта. Раушенберг стирал границу между…","p":"$89 млн","bio":"В мае 2019-го 'Buffalo II' продали на Christie's за 88,8 млн долларов — рекорд, побивший прежний почти в пять раз. Покупателем называют наследницу Walmart Элис Уолтон. Картина написана в 1964-м, когд…","m":["радость"]},{"n":"Ив Кляйн","c":"французский художник","st":"Монохром, доведённый до мистики. Кляйн запатентовал свой гл…","p":"$37 млн","bio":"В июне 2012-го 'Le Rose du bleu (RE 22)' ушёл на Christie's в Лондоне за 36,75 млн долларов (23,56 млн фунтов) — рекорд для французского послевоенного художника и самая дорогая работа Кляйна на аукци…","m":["тишина","радость","игра"]},{"n":"Ай Вэйвэй","c":"Китай (живёт в Европе)","st":"Концептуализм, инсталляция, активистское искусство. Смешива…","p":"$5.4 млн","bio":"Это не просто художник, а живой символ борьбы за свободу слова. Власти Китая сажали его под арест, сносили студию — и каждый скандал только поднимал цену. Люди покупают не металл, а голос диссидента,…","m":["провокация"]},{"n":"Аниш Капур","c":"Британия (родился в Индии)","st":"Монументальный минимализм и «искусство пустоты». Зеркальные…","p":"$3.9 млн","bio":"Капур делает физику похожей на магию: подходишь к его зеркалу — и не понимаешь, где верх, где низ, где ты сам. Он выкупил эксклюзивные права на «самый чёрный чёрный» в мире, чем взбесил всех коллег.…","m":["тишина"]},{"n":"Цзэн Фаньчжи","c":"Китай","st":"Современная китайская живопись, экспрессионизм. Знаменит се…","p":"$23 млн","bio":"На момент продажи это был рекорд для всего азиатского современного искусства — 23,3 млн долларов после десятиминутной телефонной войны двух покупателей. Картина зашифровала целую эпоху: как коммунист…","m":["меланхолия"]},{"n":"Питер Дойг","c":"Британия (Шотландия)","st":"Фигуративная живопись на грани сна и яви — «магический реал…","p":"$40 млн","bio":"Один из самых дорогих ныне живущих живописцев. «Swamped» бьёт его же рекорд каждый раз, когда всплывает на торгах — почти 40 млн долларов. Дойг доказал, что живопись кистью не умерла: в эпоху цифры л…","m":["тишина"]},{"n":"Шепард Фейри","c":"США","st":"Стрит-арт и поп-арт в стиле революционного плаката. Жирные…","p":"$950 000","bio":"Он превратил уличную наклейку в мировой бренд и создал, возможно, самый узнаваемый политический плакат XXI века. Оригинал «HOPE» ушёл почти за миллион — за образ, который сам стал частью американской…","m":["бунт","радость"]},{"n":"Бипл (Майк Винкельманн)","c":"США","st":"Цифровое искусство и NFT. Яркая 3D-графика, дистопическая с…","p":"$69 млн","bio":"69 миллионов долларов за файл, который можно бесплатно скачать — это тот самый момент, когда мир искусства признал NFT. Ценность здесь не в пикселях, а в подтверждённом владении оригиналом в блокчейн…","m":["бунт","радость","игра"]},{"n":"Дмитрий Шорин","c":"Россия","st":"Поп-арт и гламурный гиперреализм. Глянцевые «девушки с обло…","p":"нет аукц. рекорда","bio":"Один из самых узнаваемых петербургских поп-художников. Его крылатые девушки встречают пассажиров прямо в Пулково, работы — в Эрарте и множестве частных собраний, участник Первой Московской биеннале.","m":["радость","игра"]},{"n":"Виталий Пушницкий","c":"Россия","st":"Современное искусство на грани живописи, графики, объекта и…","p":"нет аукц. рекорда","bio":"Один из ведущих художников России: персональные выставки в Эрмитаже и Русском музее (редкость при жизни автора), а в 2011-м издательство Phaidon включило его в список ключевых современных художников…","m":["тишина"]},{"n":"Керим Рагимов","c":"Россия","st":"Скрупулёзный фотореализм по мотивам снимков из СМИ. Анонимн…","p":"нет аукц. рекорда","bio":"Один из ведущих авторов Галереи Марины Гисич; работы — в Новом музее (СПб), MuHKA (Антверпен), фонде «Екатерина» (Москва), Mudima (Милан). В Эрарте участвовал в проекте «Графические партитуры» (2014)…","m":["игра"]},{"n":"Латиф Казбеков","c":"Казахстан / Россия (живёт в СПб)","st":"Акварель и графика на собственной, вручную сваренной многос…","p":"нет аукц. рекорда","bio":"Оформил около сотни книг, а в 1998-м изобрёл авторскую технику многослойной бумаги из хлопка, льна, водорослей и мхов. Работы — в Эрарте, Национальном музее Казахстана и музее Чжичжао (Китай).","m":["радость"]},{"n":"Феликс Волосенков","c":"Россия","st":"Экспрессивная смешанная техника с густой рельефной фактурой…","p":"нет аукц. рекорда","bio":"Заслуженный художник РФ (2010) и академик Российской академии художеств; за последние десятилетия стал почти живым классиком петербургской живописи и одним из знаковых имён Эрарты (ушёл в марте 2025).","m":["тишина"]},{"n":"Анатолий Заславский","c":"Россия","st":"Пожалуй, самый известный петербургский экспрессионист. Плот…","p":"нет аукц. рекорда","bio":"Живой классик петербургской живописи, повлиявший на целое поколение художников. Учился в училище им. Мухиной; работы хранятся в Русском музее, Эрарте и частных собраниях по всему миру.","m":["тишина","меланхолия","радость"]},{"n":"Дмитрий Шагин","c":"Россия (Ленинград/Санкт-Петербург)","st":"Наивный примитивизм, тот самый «митьковский» стиль: тельняш…","p":"$1 200","bio":"Отец-основатель и лицо «Митьков», культовая фигура ленинградского андеграунда. Но парадокс: его самые характерные весёлые работы почти не попадают на торги, поэтому единственный публичный аукционный…","m":["бунт","радость","игра"]},{"n":"Александр Флоренский","c":"Россия (живёт в Петербурге и Тбилиси)","st":"Наивная, но изысканная графика и живопись, книжная иллюстра…","p":"$5 500","bio":"Самый «рыночный» из питерских митьков: на аукционах у него 100% продаваемость — все выставленные работы уходили с молотка. Рекорд — $5500 за «Казанский собор» на VLADEY. Коллекционеры ценят его за уз…","m":["игра","любовь"]},{"n":"Владимир Яшке","c":"Россия (Ленинград/Санкт-Петербург)","st":"Экспрессионизм в чистом виде: яркие открытые тона без свето…","p":"$10 000","bio":"«Дедушка митьков», ушёл в 2018-м. Держит рекорд цен среди питерских митьков на российских аукционах: его работу на «Совкоме» купили за 300 000 рублей (тогда около $10 000). Настоящий живописец-колори…","m":["бунт","тишина","меланхолия","радость"]},{"n":"Пётр Швецов","c":"Россия (Ленинград/Санкт-Петербург)","st":"Дерзкий эклектик, принципиально не привязанный к одному язы…","p":"нет аукц. рекорда","bio":"Один из самых упоминаемых за рубежом петербургских художников, работы в Русском музее и мировых библиотеках. Публично подтверждённой аукционной цены найти не удалось, поэтому рекорд оставлен нулём —…","m":["провокация"]},{"n":"Иван Говорков","c":"Россия (Ленинград/Санкт-Петербург)","st":"Интеллектуальная абстракция и концептуализм, тяга к парадок…","p":"нет аукц. рекорда","bio":"Ученик профессора А. Мыльникова, художник «интеллектуального типа» и заметная фигура петербургской абстракции. Публично подтверждённых аукционных продаж не нашлось, поэтому рекорд — ноль: его искусст…","m":["провокация"]},{"n":"Марина Колдобская","c":"Россия (Ленинград/Санкт-Петербург)","st":"Экспрессивная живопись быстрым жестом, чаще акрилом: кровь…","p":"нет аукц. рекорда","bio":"Художница, критик и куратор, экс-глава Музея нонконформистского искусства; её работы взял даже Эрмитаж. Конкретной публично подтверждённой аукционной цены найти не удалось (её вещи попадали в каталог…","m":["бунт","меланхолия"]}];
+const MOODS = [{"k":"радость","e":"😊","pal":["#FF3EA5","#FFD100","#00E5FF"]},{"k":"меланхолия","e":"🌧","pal":["#3b4a63","#6a4a5a","#a56b8a"]},{"k":"бунт","e":"🔥","pal":["#E4032E","#111111","#FFD100"]},{"k":"тишина","e":"🕊","pal":["#8fa0bd","#7a5c66","#c7cede"]},{"k":"провокация","e":"💥","pal":["#A56BFF","#E4032E","#00E5FF"]},{"k":"игра","e":"🎲","pal":["#FFB020","#38E08A","#FF6B4A"]},{"k":"любовь","e":"❤️","pal":["#FF6B8A","#E4B24C","#FF3EA5"]},{"k":"случайно","e":"🎰","pal":["#00E5FF","#A56BFF","#FF3EA5"]}];
+const CONCEPTS = {"радость":["Цвет кричит: сегодня можно всё.","Праздник, которому не нужен повод.","Жизнь — это фейерверк, если смотреть в упор.","Улыбка, растянутая на весь холст."],"меланхолия":["Дождь за окном рисует лучше нас.","Красота живёт в том, что уходит.","Осень внутри бывает круглый год.","Грусть — это любовь, которой некуда идти."],"бунт":["Граффити на памятнике. История — стена, которую ещё не закрасили.","Правила писали не для художников.","Кто сказал, что нельзя? Уже нарисовано.","Крюк цепляет систему за живое."],"тишина":["Пауза между нотами. Именно там — музыка.","Пустота — это холст, полный возможностей.","Молчание громче любого крика.","Один цвет. И целая вселенная в нём."],"провокация":["Искусство должно оставлять синяк.","Если не спорят — значит, не искусство.","Скандал — это комплимент от толпы.","Дорого? А ты попробуй отвести взгляд."],"игра":["Взрослые — это дети, которые забыли, как играть.","Мультик, который стоит как самолёт.","Серьёзность переоценена.","Правила игры пишет тот, кто смеётся."],"любовь":["Сердце в горошек бьётся громче.","Любовь — единственная краска, что не выцветает.","Двое смотрят в одну сторону — это и есть искусство.","Тёплый цвет для холодного мира."],"случайно":["Оракул бросил кости вселенной.","Случайность — псевдоним судьбы.","То, что нашло тебя само."]};
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let cur={mood:null, seed:0, artist:null, concept:''};
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function fnv(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
+
+function drawArt(seed, pal){
+  const DPR=Math.min(devicePixelRatio||1,2), w=cv.clientWidth, h=w*0.625;
+  cv.width=w*DPR; cv.height=h*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  const r=mulberry32(seed>>>0);
+  ctx.fillStyle='#0a0e17'; ctx.fillRect(0,0,w,h);
+  // flow strokes
+  ctx.globalCompositeOperation='lighter'; ctx.lineWidth=1;
+  const parts=[]; const N=380;
+  for(let i=0;i<N;i++)parts.push({x:r()*w,y:r()*h,c:pal[Math.floor(r()*pal.length)]});
+  const ph=r()*10;
+  for(let s=0;s<70;s++){for(const p of parts){const a=(Math.sin(p.x*0.02+Math.cos(p.y*0.015+ph))+Math.cos(p.y*0.02))*Math.PI;const nx=p.x+Math.cos(a)*2,ny=p.y+Math.sin(a)*2;ctx.strokeStyle=p.c+'22';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(nx,ny);ctx.stroke();p.x=nx;p.y=ny;}}
+  const nb=8+Math.floor(r()*8);
+  for(let i=0;i<nb;i++){const cx=r()*w,cy=r()*h,rad=18+r()*70,col=pal[Math.floor(r()*pal.length)];const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);g.addColorStop(0,col+'aa');g.addColorStop(1,col+'00');ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rad,0,6.28);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx,cy,2.5,0,6.28);ctx.fill();}
+  // signature hook
+  ctx.globalCompositeOperation='source-over';
+  ctx.strokeStyle='#E4B24C';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(w-40,h-58);ctx.lineTo(w-40,h-40);ctx.arc(w-49,h-40,9,0,Math.PI*1.4);ctx.stroke();
+  ctx.fillStyle='#E4B24C';ctx.font='12px Georgia';ctx.textAlign='right';ctx.fillText('WARHOOK ORACLE', w-64, h-16);
+}
+
+function predict(moodKey){
+  WarhookSound.stop(); document.getElementById('sndBtn').textContent='🔊 Слушать';
+  const seed=(Math.floor(Math.random()*1e9))>>>0, r=mulberry32(seed);
+  let mood=moodKey, palMood=moodKey;
+  if(moodKey==='случайно'){ const real=MOODS.filter(m=>m.k!=='случайно'); const mm=pick(real,r); mood=mm.k; palMood=mm.k; }
+  const mObj=MOODS.find(m=>m.k===palMood)||MOODS[0];
+  let cand=ARTISTS.filter(a=>a.m.includes(mood)); if(!cand.length)cand=ARTISTS;
+  const artist=pick(cand,r);
+  const concept=pick(CONCEPTS[mood]||CONCEPTS['случайно'],r);
+  cur={mood, seed, artist, concept};
+  drawArt(seed, mObj.pal);
+  document.getElementById('concept').textContent=concept;
+  document.getElementById('aName').textContent=artist.n;
+  document.getElementById('aPrice').textContent=artist.p;
+  document.getElementById('aMeta').textContent=[artist.c, artist.st].filter(Boolean).join(' · ');
+  document.getElementById('aBio').textContent=artist.bio;
+  document.getElementById('result').classList.add('on');
+  document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function sound(){const b=document.getElementById('sndBtn');if(WarhookSound.isPlaying()){WarhookSound.stop();b.textContent='🔊 Слушать';}else{b.textContent='⏸ Стоп';WarhookSound.play(fnv(cur.mood)^cur.seed, null, ()=>{b.textContent='🔊 Слушать';});}}
+function savePng(){const a=document.createElement('a');a.download='warhook-oracle-'+cur.seed+'.png';a.href=cv.toDataURL('image/png');a.click();}
+function share(){const t=cur.concept+' — WARHOOK AI ORACLE ('+cur.artist.n+')';const u='https://trainingsw75-cloud.github.io/ai-widget/';const link='https://t.me/share/url?url='+encodeURIComponent(u)+'&text='+encodeURIComponent(t);if(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.openTelegramLink)Telegram.WebApp.openTelegramLink(link);else window.open(link,'_blank');}
+
+const mm=document.getElementById('moods');
+MOODS.forEach(m=>{const b=document.createElement('button');b.className='mood';b.innerHTML='<span class="e">'+m.e+'</span>'+m.k;b.onclick=()=>{document.querySelectorAll('.mood').forEach(x=>x.classList.remove('on'));b.classList.add('on');predict(m.k);};mm.appendChild(b);});
+document.getElementById('againBtn').onclick=()=>predict(cur.mood||'случайно');
+if(window.Telegram&&Telegram.WebApp){Telegram.WebApp.ready();Telegram.WebApp.expand();}
+</script>
+</body>
+</html>
